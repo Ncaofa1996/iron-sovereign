@@ -143,6 +143,36 @@ export default function SettingsPanel({ open, onClose, settings, updateSetting, 
                 <input type="number" value={settings.waterTarget || 8} min={1} max={20} onChange={e => handleChange("waterTarget", Number(e.target.value))} style={S.input} />
               </div>
             </div>
+            <div style={S.field}>
+              <label style={S.label}>Theme</label>
+              <div style={S.row}>
+                <button
+                  onClick={() => handleChange('theme', settings.theme === 'dark' ? 'light' : 'dark')}
+                  style={{ background:'rgba(226,183,20,0.1)', border:'1px solid rgba(226,183,20,0.3)', color:'#e2b714', cursor:'pointer', fontFamily:"'Courier New',monospace", fontSize:11, padding:'6px 14px', borderRadius:5 }}
+                >
+                  {settings.theme === 'dark' ? '☀️ Light Mode' : '🌙 Dark Mode'}
+                </button>
+              </div>
+            </div>
+            <div style={S.field}>
+              <label style={S.label}>Daily Reminder</label>
+              <div style={{ display:'flex', gap:8, alignItems:'center' }}>
+                <input
+                  type="checkbox"
+                  checked={settings.notifEnabled}
+                  onChange={e => { if(e.target.checked && typeof Notification !== 'undefined') Notification.requestPermission(); handleChange('notifEnabled', e.target.checked); }}
+                  style={{ accentColor:'#e2b714', cursor:'pointer', width:16, height:16 }}
+                />
+                {settings.notifEnabled && (
+                  <input
+                    type="time"
+                    value={settings.notifTime}
+                    onChange={e => handleChange('notifTime', e.target.value)}
+                    style={S.input}
+                  />
+                )}
+              </div>
+            </div>
           </div>
 
           <hr style={S.divider} />

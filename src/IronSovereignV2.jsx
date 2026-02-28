@@ -441,6 +441,16 @@ function IronSovereignV2Inner() {
 
   const [showPrestigeOverlay, setShowPrestigeOverlay] = useState(false);
 
+  // ── Milestone Notes + Import Diff ──────────────────────────
+  const [milestoneNotes, setMilestoneNotes] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("iron_sovereign_milestone_notes")) || []; }
+    catch { return []; }
+  });
+  const [milestoneInput, setMilestoneInput] = useState('');
+  const [isMilestone, setIsMilestone] = useState(false);
+  const [lastImportDiff, setLastImportDiff] = useState(null);
+  const [showImportDiff, setShowImportDiff] = useState(false);
+
   // ── Battle Log ─────────────────────────────────────────────
   const [battleLog, setBattleLog] = useState([
     { id: 1, type: "system", msg: "Iron Sovereign V2 Interactive initialized.", time: "BOOT" },
@@ -540,6 +550,28 @@ function IronSovereignV2Inner() {
     const deficit = settings.tdee * recent.length - totalCals;
     return { deficit: Math.round(deficit), days: recent.length, lbsLostEst: (deficit / 3500).toFixed(2) };
   }, [macroHistory, settings.tdee]);
+
+  const todayDateStr = useMemo(() => new Date().toLocaleDateString("en-CA", { timeZone: "America/Chicago" }), []);
+
+  const todayAtGlance = useMemo(() => {
+    const macros = macroHistory.find(m => m.date === todayDateStr) || null;
+    const wt = weightHistory.find(w => w.date === todayDateStr) || null;
+    return { macros, weight: wt?.weight ?? weight, water: dailyWater };
+  }, [macroHistory, weightHistory, weight, dailyWater, todayDateStr]); // eslint-disable-line
+
+  const heatmapData = useMemo(() => {
+    const days = [];
+    const now = new Date();
+    for (let i = 83; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i);
+      const dateStr = d.toLocaleDateString("en-CA", { timeZone: "America/Chicago" });
+      const hasMacro = macroHistory.some(m => m.date === dateStr);
+      const hasWeight = weightHistory.some(w => w.date === dateStr);
+      const level = (hasMacro ? 2 : 0) + (hasWeight ? 1 : 0);
+      days.push({ date: dateStr, level, dow: d.getDay() });
+    }
+    return days;
+  }, [macroHistory, weightHistory]); // eslint-disable-line
 
   // ── ACTIONS ────────────────────────────────────────────────
   const castSpell = useCallback((spell) => {
@@ -780,6 +812,12 @@ function IronSovereignV2Inner() {
     const reader = new FileReader();
     reader.onload = (ev) => {
       try {
+        const _diff = { count: 0, dates: new Set(), statTotals: {} };
+        const trackXp = (date, stat, xp) => {
+          _diff.count++;
+          _diff.dates.add(date);
+          _diff.statTotals[stat] = (_diff.statTotals[stat] || 0) + xp;
+        };
         const rows = parseCSVRows(ev.target.result);
         setImportedData(prev => ({ ...prev, [source]: rows }));
         setImports(prev => ({ ...prev, [source]: { status: "success", rows: rows.length, lastSync: new Date().toLocaleString() } }));
@@ -789,6 +827,16 @@ function IronSovereignV2Inner() {
         const receipt = processImport(source, rows, phaseConfig);
         setImportReceipt(receipt);
         refreshLedger();
+
+        // Track import diff from receipt
+        if (receipt.xpByStat) {
+          Object.entries(receipt.xpByStat).forEach(([stat, xp]) => {
+            if (xp > 0) {
+              const date = new Date().toLocaleDateString("en-CA", { timeZone: "America/Chicago" });
+              trackXp(date, stat, xp);
+            }
+          });
+        }
 
         // Battle log summary + toast + XP popups
         addLog("system", `📥 ${source.toUpperCase()}: ${rows.length.toLocaleString()} rows → +${receipt.totalXP} XP (${receipt.newDaysProcessed} new days, ${receipt.daysSkippedFinalized} locked)`);
@@ -877,6 +925,16 @@ function IronSovereignV2Inner() {
               addLog("buff", `🍎 Apple Health: avg ${avgSleep}h sleep/night over ${sleepVals.length} nights.`);
             }
           }
+        }
+
+        if (_diff.count > 0) {
+          const sortedDates = [..._diff.dates].sort();
+          setLastImportDiff({
+            count: _diff.count,
+            dateRange: sortedDates.length > 1 ? `${sortedDates[0]} → ${sortedDates[sortedDates.length - 1]}` : (sortedDates[0] || ''),
+            statTotals: _diff.statTotals,
+          });
+          setShowImportDiff(true);
         }
       } catch (err) {
         setImports(prev => ({ ...prev, [source]: { status: "error", rows: 0, lastSync: null } }));
@@ -1033,6 +1091,30 @@ function IronSovereignV2Inner() {
     if (elapsed >= 7 * 86400000) setRaidQuests(RAID_DEFAULTS);
   }, []); // eslint-disable-line
 
+  // Persist milestone notes
+  useEffect(() => {
+    localStorage.setItem("iron_sovereign_milestone_notes", JSON.stringify(milestoneNotes));
+  }, [milestoneNotes]);
+
+  // Push notification check on mount
+  useEffect(() => {
+    if (!settings?.notifEnabled || !settings?.notifTime || typeof Notification === 'undefined') return;
+    const lastNotifDate = localStorage.getItem("iron_sovereign_last_notif");
+    const todayStr = new Date().toLocaleDateString("en-CA", { timeZone: "America/Chicago" });
+    if (lastNotifDate === todayStr) return;
+    const [h, m] = settings.notifTime.split(':').map(Number);
+    const now = new Date();
+    if (now.getHours() > h || (now.getHours() === h && now.getMinutes() >= m)) {
+      if (Notification.permission === 'granted') {
+        new Notification('Iron Sovereign', {
+          body: '⚔️ Time to log your daily training, Sovereign!',
+          icon: '/pwa-192x192.png',
+        });
+        localStorage.setItem("iron_sovereign_last_notif", todayStr);
+      }
+    }
+  }, []); // eslint-disable-line
+
   // ── Install handler ────────────────────────────────────────
   const handleInstallApp = useCallback(async () => {
     if (!installPrompt) return;
@@ -1101,7 +1183,7 @@ function IronSovereignV2Inner() {
   // MAIN RENDER
   // ═══════════════════════════════════════════════════════════
   return (
-    <div style={{ minHeight: "100vh", background: "#06080f", color: "#e5e7eb", fontFamily: "'Courier New', monospace" }}>
+    <div style={{ minHeight: "100vh", background: "#06080f", color: "#e5e7eb", fontFamily: "'Courier New', monospace", filter: settings?.theme === 'light' ? 'invert(1) hue-rotate(180deg)' : undefined }}>
 
       {/* ── IMPORT RECEIPT MODAL ─────────────────────────── */}
       <ImportReceipt receipt={importReceipt} onClose={() => setImportReceipt(null)} />
@@ -1331,6 +1413,25 @@ function IronSovereignV2Inner() {
         {tab === "battle" && (
           <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 320px", gap: 20, alignItems: "start" }}>
             <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+              {/* Today at a Glance */}
+              <div style={{ ...S.card, marginBottom: 10 }}>
+                <div style={{ fontSize: 9, color: "#e2b714", fontWeight: 900, letterSpacing: 3, textTransform: "uppercase", marginBottom: 10 }}>⚡ TODAY AT A GLANCE</div>
+                <div style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(3, 1fr)" : "repeat(5, 1fr)", gap: 8 }}>
+                  {[
+                    { label: "Weight", value: todayAtGlance.weight ? `${todayAtGlance.weight} lbs` : "—", color: "#e2b714" },
+                    { label: "Calories", value: todayAtGlance.macros?.cals ? todayAtGlance.macros.cals.toLocaleString() : "—", color: "#f97316" },
+                    { label: "Protein", value: todayAtGlance.macros?.protein ? `${Math.round(todayAtGlance.macros.protein)}g` : "—", color: "#22c55e" },
+                    { label: "Water", value: `${dailyWater}/${settings.waterTarget || 8}`, color: dailyWater >= (settings.waterTarget || 8) ? "#06b6d4" : "#6b7280" },
+                    { label: "Workout", value: streaks.workout > 0 ? "✓" : "—", color: streaks.workout > 0 ? "#22c55e" : "#6b7280" },
+                  ].map(({ label, value, color }) => (
+                    <div key={label} style={{ textAlign: "center", padding: "10px 8px", background: "rgba(255,255,255,0.02)", borderRadius: 8, border: "1px solid rgba(255,255,255,0.04)" }}>
+                      <div style={{ fontSize: 9, color: "#6b7280", letterSpacing: 1, textTransform: "uppercase", marginBottom: 4 }}>{label}</div>
+                      <div style={{ fontSize: isMobile ? 16 : 18, fontWeight: 900, color }}>{value}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
               {/* Encounter */}
               <div style={{ ...S.card, padding: 32, position: "relative", overflow: "hidden", background: "linear-gradient(135deg, #0f1320, #0a0d16)" }}>
                 <div style={{ position: "absolute", top: 0, right: 0, width: 200, height: 200, background: "radial-gradient(circle, rgba(239,68,68,0.05), transparent)", pointerEvents: "none" }} />
@@ -2022,6 +2123,85 @@ function IronSovereignV2Inner() {
               );
             })()}
 
+            {/* Activity Heatmap */}
+            <div style={S.card}>
+              <div style={{ fontSize: 9, color: "#e2b714", fontWeight: 900, letterSpacing: 3, textTransform: "uppercase", marginBottom: 4 }}>
+                📅 ACTIVITY HEATMAP
+                <span style={{ fontSize: 9, color: "#6b7280", fontWeight: 400, marginLeft: 8 }}>gold = weight · green = macros · bright = both</span>
+              </div>
+              <div style={{ overflowX: "auto", paddingBottom: 4 }}>
+                <div style={{ display: "grid", gridTemplateRows: "repeat(7, 12px)", gridAutoFlow: "column", gap: 3, width: "max-content", paddingTop: 10 }}>
+                  {Array.from({ length: heatmapData[0]?.dow || 0 }).map((_, i) => (
+                    <div key={`sp-${i}`} style={{ width: 12, height: 12 }} />
+                  ))}
+                  {heatmapData.map((day, i) => (
+                    <div key={i} title={`${day.date}${day.level === 3 ? ' ✓ Both' : day.level === 2 ? ' ✓ Macros' : day.level === 1 ? ' ✓ Weight' : ''}`}
+                      style={{
+                        width: 12, height: 12, borderRadius: 2,
+                        background: day.level === 3 ? "#22c55e" : day.level === 2 ? "rgba(34,197,94,0.5)" : day.level === 1 ? "rgba(226,183,20,0.5)" : "rgba(255,255,255,0.05)",
+                      }} />
+                  ))}
+                </div>
+              </div>
+              <div style={{ display: "flex", gap: 12, marginTop: 6, flexWrap: "wrap" }}>
+                {[["rgba(255,255,255,0.05)", "None"], ["rgba(226,183,20,0.5)", "Weight only"], ["rgba(34,197,94,0.5)", "Macros only"], ["#22c55e", "Both logged"]].map(([bg, label]) => (
+                  <div key={label} style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                    <div style={{ width: 10, height: 10, borderRadius: 2, background: bg }} />
+                    <span style={{ fontSize: 9, color: "#6b7280" }}>{label}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Milestone Notes */}
+            <div style={S.card}>
+              <div style={{ fontSize: 9, color: "#e2b714", fontWeight: 900, letterSpacing: 3, textTransform: "uppercase", marginBottom: 10 }}>📝 PROGRESS NOTES</div>
+              <div style={{ display: "flex", gap: 8, marginBottom: 10, alignItems: "center" }}>
+                <input
+                  value={milestoneInput}
+                  onChange={e => setMilestoneInput(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && milestoneInput.trim() && (() => {
+                    const ts = new Date().toLocaleDateString("en-CA", { timeZone: "America/Chicago" });
+                    setMilestoneNotes(prev => [{ date: ts, text: milestoneInput.trim(), isMilestone }, ...prev].slice(0, 100));
+                    setMilestoneInput(''); setIsMilestone(false);
+                  })()}
+                  placeholder="Log a note or milestone..."
+                  style={{ flex: 1, background: "#0d1425", border: "1px solid #1e2a3a", color: "#c9d1d9", fontFamily: "'Courier New',monospace", fontSize: 11, padding: "8px 10px", borderRadius: 6, outline: "none" }}
+                />
+                <label title="Mark as milestone" style={{ display: "flex", alignItems: "center", gap: 3, cursor: "pointer", userSelect: "none" }}>
+                  <input type="checkbox" checked={isMilestone} onChange={e => setIsMilestone(e.target.checked)} style={{ accentColor: "#e2b714", cursor: "pointer" }} />
+                  <span style={{ fontSize: 14 }}>⭐</span>
+                </label>
+                <button
+                  onClick={() => {
+                    if (!milestoneInput.trim()) return;
+                    const ts = new Date().toLocaleDateString("en-CA", { timeZone: "America/Chicago" });
+                    setMilestoneNotes(prev => [{ date: ts, text: milestoneInput.trim(), isMilestone }, ...prev].slice(0, 100));
+                    addLog('system', isMilestone ? `⭐ Milestone: ${milestoneInput.trim()}` : `📝 Note: ${milestoneInput.trim()}`);
+                    setMilestoneInput(''); setIsMilestone(false);
+                  }}
+                  style={{ background: "rgba(226,183,20,0.12)", border: "1px solid rgba(226,183,20,0.3)", color: "#e2b714", fontFamily: "'Courier New',monospace", fontSize: 10, padding: "8px 14px", borderRadius: 6, cursor: "pointer", whiteSpace: "nowrap" }}
+                >
+                  Add
+                </button>
+              </div>
+              {milestoneNotes.length === 0 ? (
+                <div style={{ fontSize: 10, color: "#6b7280", textAlign: "center", padding: "12px 0" }}>No notes yet. Log your first milestone!</div>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: 5, maxHeight: 180, overflowY: "auto" }}>
+                  {milestoneNotes.slice(0, 25).map((n, i) => (
+                    <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: 8, padding: "7px 10px", background: "rgba(255,255,255,0.02)", borderRadius: 6, borderLeft: `2px solid ${n.isMilestone ? "#e2b714" : "#374151"}` }}>
+                      {n.isMilestone && <span style={{ fontSize: 12, flexShrink: 0 }}>⭐</span>}
+                      <div style={{ flex: 1 }}>
+                        <span style={{ fontSize: 10, color: n.isMilestone ? "#e2b714" : "#c9d1d9" }}>{n.text}</span>
+                        <span style={{ fontSize: 9, color: "#6b7280", marginLeft: 8 }}>{n.date}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
             {weeklyDeficit && (
               <div style={{ ...S.card, display:"flex", justifyContent:"space-between", alignItems:"center" }}>
                 <div>
@@ -2136,6 +2316,40 @@ function IronSovereignV2Inner() {
               </div>
             )}
 
+            {/* Export CSV */}
+            <div style={{ textAlign: "center", paddingTop: 8, paddingBottom: 8 }}>
+              <button
+                onClick={() => {
+                  const dateSet = new Set([
+                    ...macroHistory.map(m => m.date),
+                    ...weightHistory.map(w => w.date),
+                  ]);
+                  const sorted = [...dateSet].sort();
+                  const rows = [['Date', 'Calories', 'Protein_g', 'Weight_lbs', 'Steps', 'Sleep_hrs']];
+                  for (const date of sorted) {
+                    const m = macroHistory.find(e => e.date === date) || {};
+                    const w = weightHistory.find(e => e.date === date) || {};
+                    rows.push([date, m.cals || '', m.protein || '', w.weight || '', m.steps || '', m.sleep || '']);
+                  }
+                  const csv = rows.map(r => r.join(',')).join('\n');
+                  const blob = new Blob([csv], { type: 'text/csv' });
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = url;
+                  a.download = `iron-sovereign-${new Date().toLocaleDateString('en-CA')}.csv`;
+                  document.body.appendChild(a);
+                  a.click();
+                  document.body.removeChild(a);
+                  URL.revokeObjectURL(url);
+                  addLog('system', '📊 Ledger exported as CSV');
+                }}
+                style={{ background: "rgba(34,197,94,0.1)", border: "1px solid rgba(34,197,94,0.3)", color: "#22c55e", fontFamily: "'Courier New',monospace", fontSize: 11, fontWeight: 900, padding: "10px 24px", borderRadius: 6, cursor: "pointer", letterSpacing: 2 }}
+              >
+                📊 EXPORT LEDGER CSV
+              </button>
+              <div style={{ fontSize: 9, color: "#6b7280", marginTop: 5 }}>Downloads all logged macros + weight data as CSV</div>
+            </div>
+
             {/* Milestones */}
             <div style={S.card}>
               <h3 style={{ ...S.sectionTitle, marginBottom: 16 }}>⏳ Key Milestones</h3>
@@ -2204,6 +2418,26 @@ function IronSovereignV2Inner() {
                   />
                 );
               })}
+
+              {/* Import diff — shows after each import */}
+              {showImportDiff && lastImportDiff && (
+                <div style={{ ...S.card, border: "1px solid rgba(34,197,94,0.25)", marginTop: 10 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                    <div style={{ fontSize: 9, color: "#22c55e", fontWeight: 900, letterSpacing: 3, textTransform: "uppercase" }}>✅ IMPORT COMPLETE</div>
+                    <button onClick={() => setShowImportDiff(false)} style={{ background: "none", border: "none", color: "#6b7280", cursor: "pointer", fontSize: 16, fontFamily: "'Courier New',monospace", padding: 0 }}>✕</button>
+                  </div>
+                  <div style={{ fontSize: 11, color: "#c9d1d9", marginBottom: 8 }}>
+                    {lastImportDiff.count} XP {lastImportDiff.count === 1 ? 'entry' : 'entries'} added · {lastImportDiff.dateRange}
+                  </div>
+                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                    {Object.entries(lastImportDiff.statTotals).map(([stat, xp]) => (
+                      <div key={stat} style={{ padding: "4px 10px", background: "rgba(226,183,20,0.08)", border: "1px solid rgba(226,183,20,0.2)", borderRadius: 4, fontSize: 10, color: "#e2b714" }}>
+                        {stat} +{xp.toLocaleString()} XP
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Settings & Configuration */}
