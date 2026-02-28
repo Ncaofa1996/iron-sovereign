@@ -5,6 +5,36 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [v3.6] — 2026-02-28
+### Added
+- **Trophy Room** (`src/components/TrophyRoom.jsx`) — full-screen achievement gallery modal with filter tabs (ALL / EARNED / LOCKED / MILESTONE / STREAK / BOSS), 3-column grid, stat-colored glow on earned cards
+- **Achievement Toast** (`src/components/AchievementToast.jsx`) — cinematic full-screen unlock overlay (zIndex 9500), entrance animation, motivational lines per achievement type
+- **Daily Challenge** (`src/components/DailyChallenge.jsx`) — deterministic daily quest seeded by date, stat-colored card, countdown badge, claim button, 7-day history strip, weekly bonus challenge (purple tier)
+- **Achievement Checker utility** (`src/utils/achievementChecker.js`) — pure `checkAchievements()` returning `{ updated, newlyEarned }`; conditions for Ten Thousand, Sub-20 BF%, Sub-15 BF%, Legacy Sword
+- **Challenge Engine utility** (`src/utils/challengeEngine.js`) — `getDailyChallenge()` / `getWeeklyBonus()` with `hashDate()` deterministic seeding, 24-challenge pool (4 per stat), 6-item weekly bonus pool
+- **Seasonal color overhaul** — all seasons now use multi-shade `uiColors` palettes (`primary`, `secondary`, `glow`, `badge`); winter = blue/white/grey, spring = green gradients, summer = orange/amber, harvest = amber/red glows
+- All 14 seasonal color references in `IronSovereignV2.jsx` updated to `activeSeason.uiColors.*`
+- localStorage: `iron_sovereign_daily_challenge` `{ claimedDates: string[] }`, `iron_sovereign_weekly_challenge` `{ weekStart, claimed }`
+
+---
+
+## [v3.5.1] — 2026-02-28
+### Changed
+- **Seasonal UI theming** — all hardcoded `#e2b714` gold accents in the HUD, character panel, daily log, submit button, tab bar, and avatar badge now pull from `activeSeason.uiColors` so the entire UI shifts color per active season
+
+---
+
+## [v3.5] — 2026-02-28
+### Added
+- **Skill Tree** (`src/components/SkillTree.jsx`) — 18-node tree (6 stats × 3 tiers), prerequisite chain unlocking, skill point cost (1–3 pts), tooltip on hover, stat boost calculator (`calcSkillTreeBoosts`)
+- **Seasonal Events** (`src/components/SeasonalEvent.jsx`) — calendar-driven events (Winter Siege / Spring Reborn / Summer Conquest / Harvest Hunt), 3 themed seasonal quests per season, `getActiveSeason()` utility, banner component
+- **Weekly Boss Recap** (`src/components/WeeklyRecap.jsx`) — post-reset modal showing total XP, days active, quests done, weight change, top stat, hunter rank; "WEEK CONQUERED vs SURVIVED" states
+- **Dynamic Achievement system** — `INIT_ACHIEVEMENTS` with milestone/streak/boss categories; locked at 50% opacity with progress; unlocked with stat-colored glow border
+- **Class Bonus Badge** — active class perk shown as colored badge below character avatar
+- localStorage: `iron_sovereign_skill_tree`, `iron_sovereign_achievements`, `iron_sovereign_weekly_recap` `{ weekStart, shown }`
+
+---
+
 ## [v3.4] — 2026-02-28
 ### Added
 - **Hunter Rank system** — E→D→C→B→A→S based on body weight (back-calculated from S=185 lbs goal, 10 lb intervals)
