@@ -13,6 +13,7 @@ const TYPE_META = {
   daily:  { label: "DAILY",  color: "#06b6d4", bg: "rgba(6,182,212,0.12)" },
   weekly: { label: "WEEKLY", color: "#a855f7", bg: "rgba(168,85,247,0.12)" },
   boss:   { label: "BOSS",   color: "#ef4444", bg: "rgba(239,68,68,0.12)" },
+  raid:   { label: "RAID",   color: "#f97316", bg: "rgba(249,115,22,0.12)" },
 };
 
 const FONT = "'Courier New', monospace";
@@ -43,7 +44,7 @@ export default function QuestBuilder({ quests, onQuestToggle, onResetAll, onSave
     return quests.filter(q => {
       if (filter !== "all" && (q.type || "daily") !== filter) return false;
       // Hide boss quests whose target weight is already beaten (and not yet done)
-      if ((q.type || "daily") === "boss" && q.bossTarget && currentWeight <= q.bossTarget && !q.done) return false;
+      if ((q.type || "daily") === "boss" && (q.type || "daily") !== "raid" && q.bossTarget && currentWeight <= q.bossTarget && !q.done) return false;
       return true;
     });
   }, [quests, filter, currentWeight]);
@@ -113,6 +114,7 @@ export default function QuestBuilder({ quests, onQuestToggle, onResetAll, onSave
     { key: "daily",  label: "DAILY" },
     { key: "weekly", label: "WEEKLY" },
     { key: "boss",   label: "BOSS" },
+    { key: "raid",   label: "RAID" },
   ];
 
   return (

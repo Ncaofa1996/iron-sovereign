@@ -9,6 +9,8 @@ const DEFAULTS = {
   proteinTarget: 200,
   stepTarget: 8000,
   sleepTarget: 7,
+  tdee: 2500,
+  waterTarget: 8,
   timezone: "America/Chicago",
   soundEnabled: true,
 };

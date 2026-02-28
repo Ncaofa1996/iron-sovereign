@@ -131,6 +131,18 @@ export default function SettingsPanel({ open, onClose, settings, updateSetting, 
                 <span style={S.suffix}>(hrs)</span>
               </div>
             </div>
+            <div style={S.field}>
+              <label style={S.label}>Daily TDEE (kcal)</label>
+              <div style={S.row}>
+                <input type="number" value={settings.tdee || 2500} min={1200} max={5000} onChange={e => handleChange("tdee", Number(e.target.value))} style={S.input} />
+              </div>
+            </div>
+            <div style={S.field}>
+              <label style={S.label}>Water Target (glasses)</label>
+              <div style={S.row}>
+                <input type="number" value={settings.waterTarget || 8} min={1} max={20} onChange={e => handleChange("waterTarget", Number(e.target.value))} style={S.input} />
+              </div>
+            </div>
           </div>
 
           <hr style={S.divider} />
