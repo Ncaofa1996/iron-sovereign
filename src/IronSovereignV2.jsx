@@ -670,7 +670,7 @@ function IronSovereignV2Inner() {
           addLog("buff", `👑 BOSS QUEST COMPLETE! Gold loot chest unlocked!`);
         }
         // Gear drop on quest completion
-        const questDropChances = { daily: 0.20, weekly: 0.45, boss: 0.80, raid: 0.60 };
+        const questDropChances = { daily: 0.20, weekly: 0.45, boss: 1.00, raid: 0.60 };
         const dropChance = questDropChances[q.type] || 0.20;
         if (Math.random() < dropChance) {
           const dropPool = gear.filter(g => !g.earned && !g.prestige);
