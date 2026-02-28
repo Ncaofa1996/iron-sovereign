@@ -13,6 +13,9 @@ const DEFAULTS = {
   waterTarget: 8,
   timezone: "America/Chicago",
   soundEnabled: true,
+  theme: 'dark',
+  notifEnabled: false,
+  notifTime: '20:00',
 };
 
 function loadFromStorage() {
