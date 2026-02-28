@@ -137,6 +137,15 @@ const DEBUFF_TYPES = {
   exhausted:   { name:"Exhausted",    icon:"😵", color:"#8b5cf6", desc:"Poor sleep 2+ days — VIT halved" },
 };
 
+const HUNTER_RANKS = [
+  { rank: "S", label: "Iron Sovereign",  threshold: 185, color: "#e2b714", icon: "⚡" },
+  { rank: "A", label: "Iron Commander",  threshold: 195, color: "#f97316", icon: "👑" },
+  { rank: "B", label: "Iron Knight",     threshold: 205, color: "#a855f7", icon: "🛡️" },
+  { rank: "C", label: "Iron Hunter",     threshold: 215, color: "#06b6d4", icon: "⚔️" },
+  { rank: "D", label: "Iron Initiate",   threshold: 225, color: "#22c55e", icon: "🗡️" },
+  { rank: "E", label: "Iron Novice",     threshold: Infinity, color: "#6b7280", icon: "🔩" },
+];
+
 const GEAR_SLOTS = [
   { slot: "weapon", label: "Weapon", icon: "⚔️" },
   { slot: "offhand", label: "Off-Hand", icon: "🛡️" },
@@ -451,6 +460,19 @@ function IronSovereignV2Inner() {
   const [lastImportDiff, setLastImportDiff] = useState(null);
   const [showImportDiff, setShowImportDiff] = useState(false);
 
+  // ── Hunter Rank State ──────────────────────────────────────
+  const [prevRank, setPrevRank] = useState(() => localStorage.getItem("iron_sovereign_hunter_rank") || null);
+
+  // ── Skill Points State ─────────────────────────────────────
+  const [skillPoints, setSkillPoints] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("iron_sovereign_skill_points")) || 0; }
+    catch { return 0; }
+  });
+  const [statBoosts, setStatBoosts] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("iron_sovereign_stat_boosts")) || {}; }
+    catch { return {}; }
+  });
+
   // ── Battle Log ─────────────────────────────────────────────
   const [battleLog, setBattleLog] = useState([
     { id: 1, type: "system", msg: "Iron Sovereign V2 Interactive initialized.", time: "BOOT" },
@@ -573,6 +595,11 @@ function IronSovereignV2Inner() {
     return days;
   }, [macroHistory, weightHistory]); // eslint-disable-line
 
+  const hunterRank = useMemo(
+    () => HUNTER_RANKS.find(r => weight <= r.threshold) || HUNTER_RANKS[HUNTER_RANKS.length - 1],
+    [weight]
+  );
+
   // ── ACTIONS ────────────────────────────────────────────────
   const castSpell = useCallback((spell) => {
     if (mana < spell.cost) {
@@ -606,10 +633,22 @@ function IronSovereignV2Inner() {
           setPendingLootChest({ tier: "gold", item: lootItem });
           addLog("buff", `👑 BOSS QUEST COMPLETE! Gold loot chest unlocked!`);
         }
+        // Gear drop on quest completion
+        const questDropChances = { daily: 0.05, weekly: 0.15, boss: 0.30, raid: 0.25 };
+        const dropChance = questDropChances[q.type] || 0.05;
+        if (Math.random() < dropChance) {
+          const dropPool = gear.filter(g => !g.earned && !g.prestige);
+          if (dropPool.length > 0) {
+            const dropped = dropPool[Math.floor(Math.random() * dropPool.length)];
+            setGear(prev => prev.map(g => g.name === dropped.name ? { ...g, earned: true } : g));
+            addLog("buff", `🎲 LOOT DROP! ${dropped.icon || "⚔️"} ${dropped.name} (${dropped.rarity}) dropped from quest!`);
+            setPendingLootChest({ tier: dropped.rarity === "Legendary" || dropped.rarity === "Mythic" ? "gold" : dropped.rarity === "Epic" || dropped.rarity === "Rare" ? "silver" : "bronze", item: dropped });
+          }
+        }
       }
       return { ...q, done: newDone };
     }));
-  }, [addLog, maxMana, addToast, spawnPopup]);
+  }, [addLog, maxMana, addToast, spawnPopup, gear]);
 
   const submitDailyLog = useCallback(() => {
     const w = parseFloat(dailyWeight);
@@ -1096,6 +1135,35 @@ function IronSovereignV2Inner() {
     localStorage.setItem("iron_sovereign_milestone_notes", JSON.stringify(milestoneNotes));
   }, [milestoneNotes]);
 
+  // Hunter rank advancement notification
+  useEffect(() => {
+    if (!hunterRank) return;
+    if (prevRank && prevRank !== hunterRank.rank) {
+      addLog("buff", `${hunterRank.icon} RANK UP! ${prevRank}-Rank → ${hunterRank.rank}-Rank — ${hunterRank.label}!`);
+      if (typeof addToast === 'function') addToast("achievement", `${hunterRank.icon} ${hunterRank.rank}-Rank: ${hunterRank.label}!`);
+      if (settings?.soundEnabled && typeof playSounds !== 'undefined') playSounds.levelUp?.();
+    }
+    setPrevRank(hunterRank.rank);
+    localStorage.setItem("iron_sovereign_hunter_rank", hunterRank.rank);
+  }, [hunterRank?.rank]); // eslint-disable-line
+
+  // Persist skill points and stat boosts
+  useEffect(() => { localStorage.setItem("iron_sovereign_skill_points", JSON.stringify(skillPoints)); }, [skillPoints]);
+  useEffect(() => { localStorage.setItem("iron_sovereign_stat_boosts", JSON.stringify(statBoosts)); }, [statBoosts]);
+
+  // Award skill points on level-up
+  useEffect(() => {
+    const stored = parseInt(localStorage.getItem("iron_sovereign_prev_level") || "0");
+    if (level > 0 && level > stored) {
+      if (stored > 0) {
+        const pts = level > 20 ? 4 : level > 10 ? 3 : 2;
+        setSkillPoints(p => p + pts);
+        addLog("buff", `📊 Level ${level}! +${pts} skill point${pts > 1 ? "s" : ""} to allocate.`);
+      }
+      localStorage.setItem("iron_sovereign_prev_level", level.toString());
+    }
+  }, [level]); // eslint-disable-line
+
   // Push notification check on mount
   useEffect(() => {
     if (!settings?.notifEnabled || !settings?.notifTime || typeof Notification === 'undefined') return;
@@ -1253,6 +1321,13 @@ function IronSovereignV2Inner() {
               <div style={{ fontSize: 10, color: "#e2b714", fontWeight: 700, letterSpacing: 2, textTransform: "uppercase" }}>
                 {classInfo.icon} {classInfo.evolve[evoStage]} • {tier.name}
               </div>
+              <span style={{
+                fontSize: 9, fontWeight: 900, color: hunterRank.color,
+                background: `${hunterRank.color}18`, border: `1px solid ${hunterRank.color}44`,
+                padding: "2px 8px", borderRadius: 4, letterSpacing: 1, display: "inline-block", marginTop: 2,
+              }}>
+                {hunterRank.rank}-RANK
+              </span>
             </div>
           </div>
 
@@ -1698,6 +1773,78 @@ function IronSovereignV2Inner() {
                     <div style={{ fontSize:9, color:"#6b7280", marginTop:3 }}>Prestige Unlocked — 200lb Wall Broken</div>
                   </div>
                 )}
+                {/* Hunter Rank */}
+                {hunterRank && (() => {
+                  const currentIdx = HUNTER_RANKS.findIndex(r => r.rank === hunterRank.rank);
+                  const nextRank = currentIdx > 0 ? HUNTER_RANKS[currentIdx - 1] : null;
+                  const poundsToNext = nextRank ? Math.max(0, weight - nextRank.threshold) : 0;
+                  return (
+                    <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", background: `${hunterRank.color}10`, border: `1px solid ${hunterRank.color}30`, borderRadius: 10, marginTop: 10 }}>
+                      <span style={{ fontSize: 32, flexShrink: 0 }}>{hunterRank.icon}</span>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: 9, color: "#6b7280", letterSpacing: 2, textTransform: "uppercase", marginBottom: 2 }}>Hunter Rank</div>
+                        <div style={{ fontSize: 18, fontWeight: 900, color: hunterRank.color }}>
+                          {hunterRank.rank}-Rank
+                          <span style={{ fontSize: 11, color: "#c9d1d9", marginLeft: 8, fontWeight: 400 }}>{hunterRank.label}</span>
+                        </div>
+                        {nextRank && (
+                          <div style={{ fontSize: 9, color: "#6b7280", marginTop: 3 }}>
+                            {poundsToNext.toFixed(1)} lbs to {nextRank.rank}-Rank ({nextRank.label}) · {nextRank.threshold} lbs
+                          </div>
+                        )}
+                        {!nextRank && <div style={{ fontSize: 9, color: "#e2b714", marginTop: 3 }}>⚡ Maximum rank achieved — Iron Sovereign!</div>}
+                      </div>
+                    </div>
+                  );
+                })()}
+                {/* Skill Point Allocation */}
+                {(skillPoints > 0 || Object.values(statBoosts).some(v => v > 0)) && (
+                  <div style={{ ...S.card, border: skillPoints > 0 ? "1px solid rgba(226,183,20,0.4)" : "1px solid rgba(255,255,255,0.06)", marginTop: 10 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+                      <div style={{ fontSize: 9, color: skillPoints > 0 ? "#e2b714" : "#6b7280", fontWeight: 900, letterSpacing: 3, textTransform: "uppercase" }}>
+                        📊 SKILL POINTS{skillPoints > 0 ? ` — ${skillPoints} to spend` : " — all spent"}
+                      </div>
+                      {Object.keys(statBoosts).length > 0 && (
+                        <div style={{ fontSize: 9, color: "#6b7280" }}>
+                          Total boosted: +{Object.values(statBoosts).reduce((s, v) => s + v, 0)}
+                        </div>
+                      )}
+                    </div>
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 6 }}>
+                      {["STR", "END", "WIS", "INT", "CON", "VIT"].map(stat => {
+                        const boost = statBoosts[stat] || 0;
+                        const statColor = STAT_COLORS?.[stat] || "#e2b714";
+                        return (
+                          <button key={stat} disabled={skillPoints <= 0}
+                            onClick={() => {
+                              if (skillPoints <= 0) return;
+                              setSkillPoints(p => p - 1);
+                              setStatBoosts(prev => ({ ...prev, [stat]: (prev[stat] || 0) + 10 }));
+                              addLog("buff", `📊 Skill point invested: ${stat} +10`);
+                            }}
+                            style={{
+                              background: skillPoints > 0 ? `${statColor}15` : "rgba(255,255,255,0.02)",
+                              border: `1px solid ${statColor}${skillPoints > 0 ? "44" : "22"}`,
+                              color: skillPoints > 0 ? statColor : "#4b5563",
+                              fontFamily: "'Courier New',monospace", fontSize: 11, fontWeight: 900,
+                              padding: "10px 0", borderRadius: 6,
+                              cursor: skillPoints > 0 ? "pointer" : "default",
+                              display: "flex", flexDirection: "column", alignItems: "center", gap: 2,
+                            }}>
+                            <span>{stat}</span>
+                            {boost > 0 && <span style={{ fontSize: 8, color: statColor, opacity: 0.8 }}>+{boost}</span>}
+                            {skillPoints > 0 && <span style={{ fontSize: 8, color: "#6b7280" }}>+10</span>}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {skillPoints > 0 && (
+                      <div style={{ fontSize: 9, color: "#6b7280", marginTop: 8 }}>
+                        Each skill point adds +10 to the chosen stat permanently.
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -1941,6 +2088,16 @@ function IronSovereignV2Inner() {
                           addLog("buff", `⚡ RAID BOSS DEFEATED: ${q.name} (+${q.xp} ${q.stat} XP!)`);
                           spawnPopup(`+${q.xp} ${q.stat}`, STAT_COLORS[q.stat] || "#f97316");
                           addToast("achievement", `⚡ Raid Boss down: ${q.name}!`);
+                          // Gear drop on raid completion
+                          if (Math.random() < 0.25) {
+                            const dropPool = gear.filter(g => !g.earned && !g.prestige);
+                            if (dropPool.length > 0) {
+                              const dropped = dropPool[Math.floor(Math.random() * dropPool.length)];
+                              setGear(prev => prev.map(g => g.name === dropped.name ? { ...g, earned: true } : g));
+                              addLog("buff", `🎲 LOOT DROP! ${dropped.icon || "⚔️"} ${dropped.name} (${dropped.rarity}) dropped from raid!`);
+                              setPendingLootChest({ tier: dropped.rarity === "Legendary" || dropped.rarity === "Mythic" ? "gold" : dropped.rarity === "Epic" || dropped.rarity === "Rare" ? "silver" : "bronze", item: dropped });
+                            }
+                          }
                         }
                       }} />
                     <span style={{ fontSize:22, flexShrink:0 }}>{q.icon}</span>
