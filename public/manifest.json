@@ -1,0 +1,18 @@
+{
+  "name": "Iron Sovereign",
+  "short_name": "Iron Sovereign",
+  "description": "Fitness RPG Dashboard — track stats, defeat bosses, level up.",
+  "theme_color": "#e2b714",
+  "background_color": "#06080f",
+  "display": "standalone",
+  "start_url": "/",
+  "scope": "/",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
