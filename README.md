@@ -298,6 +298,58 @@ Right (icon buttons):
 
 ---
 
+## Inspirations
+
+Iron Sovereign draws from four sources. All multiplayer features have been re-imagined as solo mechanics.
+
+### [Solo Leveling](https://en.wikipedia.org/wiki/Solo_Leveling)
+The manhwa/anime that popularized the "status screen RPG" aesthetic. The core inspiration for Iron Sovereign's visual language: dark UI, gold accents, rank tiers, and the idea that daily real-world activity produces visible stat growth on a character sheet. The *Hunter rank* system (E→D→C→B→A→S) is on the roadmap.
+
+### [FitRPG (fitrpg/fitrpg-ionic)](https://github.com/fitrpg/fitrpg-ionic)
+An open-source fitness RPG that converts Fitbit data (steps, sleep, distance, workouts) into character attributes (STR, DEX, END, VIT). Iron Sovereign uses the same fitness-data-to-stat pipeline concept, extended to support Liftosaur, Cronometer, Renpho, and Apple Health. FitRPG introduced the concept of timed quests with failure penalties — a feature on Iron Sovereign's roadmap.
+
+### [Habitica](https://habitica.com/)
+The gold standard for gamified habit tracking. Key mechanics borrowed or planned:
+- **Positive & negative habits** — good habits grant XP, bad habits cost HP
+- **Three task layers** — Dailies, Habits, and To-Dos (Iron Sovereign uses Quests as the unified layer)
+- **Boss HP bars** — boss quests visually drain a boss's HP bar as you complete goals (planned)
+- **Equipment drop system** — completing quests has a chance to drop gear items (planned)
+- **Pet evolution** — pets level up when fed and evolve into mounts (Iron Sovereign has pets, evolution is planned)
+- **Class spells** — class-specific abilities tied to your dominant stat (planned)
+- **Custom rewards** — user-defined IRL rewards with MANA cost (planned)
+
+### [RPG Fitness / Gamified Fitness Apps (2025)](https://www.workoutquestapp.com/top-gamified-fitness-apps-of-2025)
+The broader ecosystem of fitness RPGs in 2025 (Fitscape, LevelUP, INFITNITE) contributed several concepts:
+- **Dungeon system** — timed multi-stage challenges with room-by-room rewards (planned)
+- **Skill point allocation on level-up** — choose which stat to boost when you level (planned)
+- **Chapter-based story missions** — a narrative arc where fitness goals drive a storyline (planned)
+- **Character classes** affecting stat growth rates (Iron Sovereign's tier system is the foundation)
+
+---
+
+## Roadmap (Inspired Features)
+
+Features inspired by the above apps, not yet built:
+
+| Feature | Inspiration | Priority |
+|---------|-------------|----------|
+| Hunter rank advancement (E→S class) | Solo Leveling | High |
+| Bad habit tracker → HP damage | Habitica | High |
+| Timed quests with failure penalties | FitRPG | High |
+| Boss HP bar visualization | Habitica | Medium |
+| Skill point allocation on level-up | FitRPG / Fitscape | Medium |
+| Quest drop system (random gear) | Habitica | Medium |
+| Custom MANA-cost personal rewards | Habitica | Medium |
+| Dungeon run system (multi-stage) | Fitscape / LevelUP | Medium |
+| Pet evolution → mounts | Habitica | Low |
+| Class spells (Warrior/Mage/Rogue/Healer) | Habitica | Low |
+| Seasonal events (monthly themed quests) | Habitica | Low |
+| Freeze day (MANA cost, no penalty) | Habitica | Low |
+| Chapter story missions | INFITNITE | Low |
+| Shadow archives (boss trophy hall) | Solo Leveling | Low |
+
+---
+
 ## Version History
 
 | Version | Description |
@@ -306,3 +358,14 @@ Right (icon buttons):
 | V2.0 | CSV import engine, XP ledger, RPG theming |
 | V2.1 | Toast notifications, drag-drop CSV, workout logger, PWA |
 | V2.2 | Settings panel, data manager, notification center, macro calc, quest builder, day detail panels, global animations, mobile responsive styles |
+| V2.3 | New gear/pets/spells: 14 gear items, 4 pets, 4 spells |
+| V2.4 | LootChest cinematic overlay on boss encounter defeats |
+| V2.5 | Quest tier system (Daily/Weekly/Boss), 22 default quests, streak dashboard |
+| V2.6 | RPG SVG icon pack (41 icons): quests, spells, encounters, gear |
+| V2.7 | Weekly summary XP card, weekly quest 7-day auto-reset |
+| V2.8 | Sound effects, armor rating, flavor text, spell effects, gear compare, macro chart, PRs, Phoenix Saga chain quests, workout chart, BF% chart, confetti burst |
+| V2.9 | Full iOS mobile view: responsive grids, safe-area insets, viewport-fit=cover |
+| V3.0 | Apple Health CSV support, XP engine 0-XP reimport fix |
+| V3.1 | GitHub infrastructure: labels, issue templates, PR template, CI workflow |
+| V3.2 | Tracking + RPG Mechanics: weigh-in streak, calorie deficit tracker, water counter, bodyweight trend line, prestige system, raid boss events, debuff system, gear durability |
+| V3.3 | UI/QoL: Today at a Glance, 84-day activity heatmap, milestone notes, export CSV, import diff panel, light/dark theme, push notification reminders |
