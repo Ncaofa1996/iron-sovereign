@@ -1439,17 +1439,17 @@ function IronSovereignV2Inner() {
       )}
 
       {/* ── TOP HUD BAR ──────────────────────────────────── */}
-      <div style={{ background: "linear-gradient(180deg, #0c1019, #06080f)", borderBottom: "1px solid rgba(255,255,255,0.05)", padding: "12px 20px" }}>
+      <div style={{ background: "linear-gradient(180deg, #0c1019, #06080f)", borderBottom: `1px solid ${activeSeason.color}22`, padding: "12px 20px" }}>
         <div style={{ maxWidth: 1200, margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
           {/* Identity */}
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <div style={{ width: 40, height: 40, borderRadius: 12, background: "linear-gradient(135deg, #e2b714, #f59e0b)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, fontWeight: 900, color: "#000", position: "relative" }}>
+            <div style={{ width: 40, height: 40, borderRadius: 12, background: `linear-gradient(135deg, ${activeSeason.color}, ${activeSeason.color}bb)`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, fontWeight: 900, color: "#000", position: "relative" }}>
               M
               <div style={{ position: "absolute", top: -6, right: -6, background: "#3b82f6", color: "#fff", fontSize: 9, fontWeight: 900, padding: "2px 5px", borderRadius: 6, border: "2px solid #06080f" }}>{level}</div>
             </div>
             <div>
               <div style={{ fontSize: 14, fontWeight: 900, color: "#fff", letterSpacing: -0.5 }}>MARCEL</div>
-              <div style={{ fontSize: 10, color: "#e2b714", fontWeight: 700, letterSpacing: 2, textTransform: "uppercase" }}>
+              <div style={{ fontSize: 10, color: activeSeason.color, fontWeight: 700, letterSpacing: 2, textTransform: "uppercase" }}>
                 {classInfo.icon} {classInfo.evolve[evoStage]} • {tier.name}
               </div>
               <span style={{
@@ -1533,9 +1533,9 @@ function IronSovereignV2Inner() {
       {/* ── DAILY LOG PANEL (collapsible) ────────────────── */}
       {showDailyLog && (
         <div style={{ maxWidth: 1200, margin: "0 auto", padding: "0 20px" }}>
-          <div style={{ background: "linear-gradient(135deg, #0f1320, #0c1019)", border: "1px solid rgba(226,183,20,0.15)", borderRadius: "0 0 20px 20px", padding: 20, borderTop: "2px solid #e2b714" }}>
+          <div style={{ background: "linear-gradient(135deg, #0f1320, #0c1019)", border: `1px solid ${activeSeason.color}22`, borderRadius: "0 0 20px 20px", padding: 20, borderTop: `2px solid ${activeSeason.color}` }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-              <h3 style={{ ...S.sectionTitle, color: "#e2b714", margin: 0 }}>📋 Daily Battle Log</h3>
+              <h3 style={{ ...S.sectionTitle, color: activeSeason.color, margin: 0 }}>📋 Daily Battle Log</h3>
               <button onClick={() => setShowDailyLog(false)} style={{ background: "none", border: "none", color: "#6b7280", fontSize: 18, cursor: "pointer", fontFamily: "inherit" }}>✕</button>
             </div>
             <div style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(2, 1fr)" : "repeat(5, 1fr)", gap: 12, marginBottom: 16 }}>
@@ -1592,7 +1592,7 @@ function IronSovereignV2Inner() {
                 <span style={{ fontSize: 10, fontWeight: 900, color: "#f59e0b", animation: "pulse 1s infinite" }}>⭐ TRIFECTA!</span>
               )}
               <div style={{ flex: 1 }} />
-              <button onClick={submitDailyLog} style={{ ...S.btn, padding: "10px 32px" }}>
+              <button onClick={submitDailyLog} style={{ ...S.btn, background: activeSeason.color, padding: "10px 32px" }}>
                 ⚡ Submit Log
               </button>
             </div>
@@ -1605,7 +1605,7 @@ function IronSovereignV2Inner() {
         <div style={{ maxWidth: 1200, margin: "0 auto", display: "flex", overflowX: "auto", padding: "0 20px" }}>
           {tabs.map(t => (
             <button key={t.id} onClick={() => setTab(t.id)}
-              style={{ padding: "12px 16px", background: "none", border: "none", borderBottom: tab === t.id ? "2px solid #e2b714" : "2px solid transparent", color: tab === t.id ? "#e2b714" : "#6b7280", fontSize: 11, fontWeight: 900, cursor: "pointer", letterSpacing: 1, textTransform: "uppercase", whiteSpace: "nowrap", fontFamily: "inherit", transition: "all 0.2s" }}>
+              style={{ padding: "12px 16px", background: "none", border: "none", borderBottom: tab === t.id ? `2px solid ${activeSeason.color}` : "2px solid transparent", color: tab === t.id ? activeSeason.color : "#6b7280", fontSize: 11, fontWeight: 900, cursor: "pointer", letterSpacing: 1, textTransform: "uppercase", whiteSpace: "nowrap", fontFamily: "inherit", transition: "all 0.2s" }}>
               {t.label}
             </button>
           ))}
@@ -1625,10 +1625,10 @@ function IronSovereignV2Inner() {
               )}
               {/* Today at a Glance */}
               <div style={{ ...S.card, marginBottom: 10 }}>
-                <div style={{ fontSize: 9, color: "#e2b714", fontWeight: 900, letterSpacing: 3, textTransform: "uppercase", marginBottom: 10 }}>⚡ TODAY AT A GLANCE</div>
+                <div style={{ fontSize: 9, color: activeSeason.color, fontWeight: 900, letterSpacing: 3, textTransform: "uppercase", marginBottom: 10 }}>⚡ TODAY AT A GLANCE</div>
                 <div style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(3, 1fr)" : "repeat(5, 1fr)", gap: 8 }}>
                   {[
-                    { label: "Weight", value: todayAtGlance.weight ? `${todayAtGlance.weight} lbs` : "—", color: "#e2b714" },
+                    { label: "Weight", value: todayAtGlance.weight ? `${todayAtGlance.weight} lbs` : "—", color: activeSeason.color },
                     { label: "Calories", value: todayAtGlance.macros?.cals ? todayAtGlance.macros.cals.toLocaleString() : "—", color: "#f97316" },
                     { label: "Protein", value: todayAtGlance.macros?.protein ? `${Math.round(todayAtGlance.macros.protein)}g` : "—", color: "#22c55e" },
                     { label: "Water", value: `${dailyWater}/${settings.waterTarget || 8}`, color: dailyWater >= (settings.waterTarget || 8) ? "#06b6d4" : "#6b7280" },
@@ -1778,7 +1778,7 @@ function IronSovereignV2Inner() {
                   <PolarGrid stroke="#1f2937" />
                   <PolarAngleAxis dataKey="stat" tick={{ fill: "#9ca3af", fontSize: 10 }} />
                   <PolarRadiusAxis angle={30} domain={[0, 100]} tick={false} axisLine={false} />
-                  <Radar name="Stats" dataKey="value" stroke="#e2b714" fill="#e2b714" fillOpacity={0.15} strokeWidth={2} />
+                  <Radar name="Stats" dataKey="value" stroke={activeSeason.color} fill={activeSeason.color} fillOpacity={0.15} strokeWidth={2} />
                 </RadarChart>
               </ResponsiveContainer>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, marginTop: 8 }}>
@@ -1810,12 +1810,12 @@ function IronSovereignV2Inner() {
             <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
               <div style={S.card}>
                 <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 20 }}>
-                  <div style={{ width: 56, height: 56, borderRadius: 16, background: "linear-gradient(135deg, #e2b714, #f59e0b)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28, border: "3px solid #1f2937" }}>
+                  <div style={{ width: 56, height: 56, borderRadius: 16, background: `linear-gradient(135deg, ${activeSeason.color}, ${activeSeason.color}bb)`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28, border: "3px solid #1f2937" }}>
                     {classInfo.icon}
                   </div>
                   <div>
                     <h2 style={{ margin: 0, fontSize: 20, fontWeight: 900, color: "#fff" }}>MARCEL</h2>
-                    <div style={{ fontSize: 11, color: "#e2b714", fontWeight: 700 }}>Level {level} {classInfo.evolve[evoStage]}</div>
+                    <div style={{ fontSize: 11, color: activeSeason.color, fontWeight: 700 }}>Level {level} {classInfo.evolve[evoStage]}</div>
                     <div style={{ fontSize: 10, color: "#6b7280" }}>{tier.name} Tier • Day {dayCount.toLocaleString()}</div>
                   </div>
                 </div>
@@ -1825,7 +1825,7 @@ function IronSovereignV2Inner() {
                     <span>Level Progress</span><span>{totalPower} / 390 (next tier)</span>
                   </div>
                   <div style={{ height: 8, background: "#1f2937", borderRadius: 6, overflow: "hidden" }}>
-                    <div style={{ height: "100%", width: `${Math.min(100, ((totalPower - 330) / (390 - 330)) * 100)}%`, background: "linear-gradient(90deg, #e2b714, #f59e0b)", borderRadius: 6 }} />
+                    <div style={{ height: "100%", width: `${Math.min(100, ((totalPower - 330) / (390 - 330)) * 100)}%`, background: `linear-gradient(90deg, ${activeSeason.color}, ${activeSeason.color}bb)`, borderRadius: 6 }} />
                   </div>
                 </div>
 
@@ -2932,7 +2932,7 @@ function IronSovereignV2Inner() {
           <span>{">"} HP {hp}/100 • MANA {mana}/{maxMana}</span>
           <span>{">"} {Object.entries(imports).filter(([, v]) => v.status === "success").length}/4 SOURCES SYNCED</span>
         </div>
-        <span style={{ color: "#e2b714", fontWeight: 700, marginLeft: 16 }}>V3.5.0</span>
+        <span style={{ color: activeSeason.color, fontWeight: 700, marginLeft: 16 }}>V3.5.0</span>
       </div>
     </div>
   );
