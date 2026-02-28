@@ -55,6 +55,9 @@ import NotificationCenter, { useNotifBadge } from "./components/NotificationCent
 import MacroCalc from "./components/MacroCalc.jsx";
 import QuestBuilder from "./components/QuestBuilder.jsx";
 import LootChest from "./components/LootChest.jsx";
+import SkillTree from "./components/SkillTree.jsx";
+import SeasonalEventBanner, { getActiveSeason } from "./components/SeasonalEvent.jsx";
+import WeeklyRecap, { shouldShowRecap, markRecapShown, getWeekStart } from "./components/WeeklyRecap.jsx";
 import { injectGlobalAnimations } from "./utils/animations.js";
 import { injectResponsiveStyles } from "./utils/responsive.js";
 import { playSounds } from "./utils/sounds.js";
@@ -365,7 +368,13 @@ function IronSovereignV2Inner() {
   const [phase, setPhase] = useState("phase1_cut");
   const [gear, setGear] = useState(INIT_GEAR);
   const [pets] = useState(INIT_PETS);
-  const [achievements] = useState(INIT_ACHIEVEMENTS);
+  const [achievements, setAchievements] = useState(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem("iron_sovereign_achievements"));
+      if (saved && Array.isArray(saved) && saved.length >= INIT_ACHIEVEMENTS.length) return saved;
+    } catch {}
+    return INIT_ACHIEVEMENTS;
+  });
   const [showSettings, setShowSettings] = useState(false);
   const [selectedGearSlot, setSelectedGearSlot] = useState(null);
 
@@ -508,6 +517,14 @@ function IronSovereignV2Inner() {
     try { return JSON.parse(localStorage.getItem("iron_sovereign_stat_boosts")) || {}; }
     catch { return {}; }
   });
+  const [unlockedNodes, setUnlockedNodes] = useState(() => {
+    try { return new Set(JSON.parse(localStorage.getItem("iron_sovereign_skill_tree") || "[]")); }
+    catch { return new Set(); }
+  });
+
+  // ── Weekly Recap State ─────────────────────────────────────
+  const [showWeeklyRecap, setShowWeeklyRecap] = useState(false);
+  const [weeklyRecapData, setWeeklyRecapData] = useState(null);
 
   // ── Battle Log ─────────────────────────────────────────────
   const [battleLog, setBattleLog] = useState([
@@ -536,6 +553,8 @@ function IronSovereignV2Inner() {
   const level = getLevel(totalPower);
   const classInfo = getClassInfo(attrs);
   const evoStage = getEvo(level);
+  const topStat = Object.entries(attrs).sort((a, b) => b[1] - a[1])[0]?.[0] || "STR";
+  const activeSeason = getActiveSeason();
   const currentPhase = PHASES.find(p => p.id === phase);
   const lbsLost = 385 - weight;
 
@@ -1199,6 +1218,54 @@ function IronSovereignV2Inner() {
   useEffect(() => { localStorage.setItem("iron_sovereign_skill_points", JSON.stringify(skillPoints)); }, [skillPoints]);
   useEffect(() => { localStorage.setItem("iron_sovereign_stat_boosts", JSON.stringify(statBoosts)); }, [statBoosts]);
 
+  // Dynamic achievement unlock checks
+  useEffect(() => {
+    setAchievements(prev => {
+      let changed = false;
+      const next = prev.map(a => {
+        if (a.earned) return a;
+        let earned = false;
+        if (a.name === "Ten Thousand" && totalSets >= 10000) earned = true;
+        else if (a.name === "Sub-20 BF%" && bodyFat < 20) earned = true;
+        else if (a.name === "Sub-15 BF%" && bodyFat < 15) earned = true;
+        else if (a.name === "Legacy Sword" && lbsLost >= 170) earned = true;
+        if (earned) {
+          changed = true;
+          if (typeof addToast === 'function') addToast("achievement", `🏆 ${a.name} unlocked!`);
+          return { ...a, earned: true };
+        }
+        return a;
+      });
+      if (changed) { localStorage.setItem("iron_sovereign_achievements", JSON.stringify(next)); return next; }
+      return prev;
+    });
+  }, [totalSets, bodyFat, lbsLost]); // eslint-disable-line
+
+  // Weekly boss recap — show once per week on first load
+  useEffect(() => {
+    if (!shouldShowRecap()) return;
+    const weekStart = getWeekStart();
+    const weekDates = Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(weekStart + "T12:00:00");
+      d.setDate(d.getDate() + i);
+      return d.toISOString().slice(0, 10);
+    });
+    const weekEntries = xpHistory.filter(e => weekDates.includes(e.date));
+    const totalXP = weekEntries.reduce((s, e) => s + (e.total || 0), 0);
+    if (totalXP === 0) return; // nothing to recap yet
+    const daysActive = weekEntries.filter(e => (e.total || 0) > 0).length;
+    const questsDone = dailyQuests.filter(q => q.done).length;
+    const statTotals = {};
+    weekEntries.forEach(e => {
+      ["STR","END","WIS","INT","CON","VIT"].forEach(stat => {
+        statTotals[stat] = (statTotals[stat] || 0) + (e[stat] || 0);
+      });
+    });
+    const topStatThisWeek = Object.entries(statTotals).sort((a,b)=>b[1]-a[1])[0]?.[0] || "STR";
+    setWeeklyRecapData({ totalXP, daysActive, questsDone, weightChange: 0, topStat: topStatThisWeek, topStatXP: statTotals[topStatThisWeek] || 0 });
+    setShowWeeklyRecap(true);
+  }, []); // eslint-disable-line
+
   // Award skill points on level-up
   useEffect(() => {
     const stored = parseInt(localStorage.getItem("iron_sovereign_prev_level") || "0");
@@ -1230,6 +1297,22 @@ function IronSovereignV2Inner() {
       }
     }
   }, []); // eslint-disable-line
+
+  // ── Skill Tree unlock handler ───────────────────────────────
+  const handleSkillUnlock = useCallback((node) => {
+    if (skillPoints < node.cost) return;
+    if (node.prereq && !unlockedNodes.has(node.prereq)) return;
+    setUnlockedNodes(prev => {
+      const next = new Set(prev);
+      next.add(node.id);
+      localStorage.setItem("iron_sovereign_skill_tree", JSON.stringify([...next]));
+      return next;
+    });
+    setSkillPoints(p => p - node.cost);
+    setStatBoosts(prev => ({ ...prev, [node.stat]: (prev[node.stat] || 0) + node.amount }));
+    addLog("buff", `🌳 Skill unlocked: ${node.name} — ${node.stat} +${node.amount}`);
+    if (typeof addToast === 'function') addToast("achievement", `🌳 ${node.name}!`);
+  }, [skillPoints, unlockedNodes, addLog, addToast]); // eslint-disable-line
 
   // ── Install handler ────────────────────────────────────────
   const handleInstallApp = useCallback(async () => {
@@ -1536,6 +1619,10 @@ function IronSovereignV2Inner() {
         {tab === "battle" && (
           <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 320px", gap: 20, alignItems: "start" }}>
             <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+              {/* Seasonal Event Banner */}
+              {activeSeason && (
+                <SeasonalEventBanner onViewQuests={() => setTab("quests")} />
+              )}
               {/* Today at a Glance */}
               <div style={{ ...S.card, marginBottom: 10 }}>
                 <div style={{ fontSize: 9, color: "#e2b714", fontWeight: 900, letterSpacing: 3, textTransform: "uppercase", marginBottom: 10 }}>⚡ TODAY AT A GLANCE</div>
@@ -1783,7 +1870,18 @@ function IronSovereignV2Inner() {
                     </div>
                   ))}
                 </div>
-                <div style={{ marginTop:12, padding:"10px 16px", background:"rgba(226,183,20,0.06)", border:"1px solid rgba(226,183,20,0.15)", borderRadius:10, display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+                {/* Class Bonus */}
+                <div style={{ marginTop:10, padding:"10px 16px", background:`${STAT_COLORS[topStat] || "#e2b714"}10`, border:`1px solid ${STAT_COLORS[topStat] || "#e2b714"}25`, borderRadius:10, display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+                  <div>
+                    <div style={{ fontSize:9, color:"#6b7280", textTransform:"uppercase", letterSpacing:2, marginBottom:2 }}>Class Specialization</div>
+                    <div style={{ fontSize:11, color: STAT_COLORS[topStat] || "#e2b714", fontWeight:900 }}>{topStat} Dominant · {classInfo.icon} {classInfo.evolve[evoStage]}</div>
+                  </div>
+                  <div style={{ textAlign:"right" }}>
+                    <div style={{ fontSize:9, color:"#6b7280", marginBottom:2 }}>Primary Stat</div>
+                    <div style={{ fontSize:18, fontWeight:900, color: STAT_COLORS[topStat] || "#e2b714" }}>{topStat}</div>
+                  </div>
+                </div>
+                <div style={{ marginTop:10, padding:"10px 16px", background:"rgba(226,183,20,0.06)", border:"1px solid rgba(226,183,20,0.15)", borderRadius:10, display:"flex", justifyContent:"space-between", alignItems:"center" }}>
                   <span style={{ fontSize:11, color:"#6b7280", textTransform:"uppercase", letterSpacing:2, fontFamily:"'Courier New', monospace" }}>⚔️ Gear Power</span>
                   <span style={{ fontSize:22, fontWeight:900, color:"#e2b714", fontFamily:"'Courier New', monospace" }}>{armorRating}<span style={{ fontSize:9, color:"#6b7280", marginLeft:4 }}>pts</span></span>
                 </div>
@@ -1845,54 +1943,19 @@ function IronSovereignV2Inner() {
                     </div>
                   );
                 })()}
-                {/* Skill Point Allocation */}
-                {(skillPoints > 0 || Object.values(statBoosts).some(v => v > 0)) && (
-                  <div style={{ ...S.card, border: skillPoints > 0 ? "1px solid rgba(226,183,20,0.4)" : "1px solid rgba(255,255,255,0.06)", marginTop: 10 }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-                      <div style={{ fontSize: 9, color: skillPoints > 0 ? "#e2b714" : "#6b7280", fontWeight: 900, letterSpacing: 3, textTransform: "uppercase" }}>
-                        📊 SKILL POINTS{skillPoints > 0 ? ` — ${skillPoints} to spend` : " — all spent"}
-                      </div>
-                      {Object.keys(statBoosts).length > 0 && (
-                        <div style={{ fontSize: 9, color: "#6b7280" }}>
-                          Total boosted: +{Object.values(statBoosts).reduce((s, v) => s + v, 0)}
-                        </div>
-                      )}
+                {/* Skill Tree */}
+                <div style={{ ...S.card, border: skillPoints > 0 ? "1px solid rgba(226,183,20,0.35)" : "1px solid rgba(255,255,255,0.06)", marginTop: 10 }}>
+                  <SkillTree
+                    skillPoints={skillPoints}
+                    unlockedNodes={unlockedNodes}
+                    onUnlock={handleSkillUnlock}
+                  />
+                  {Object.values(statBoosts).some(v => v > 0) && (
+                    <div style={{ marginTop: 10, fontSize: 9, color: "#6b7280", borderTop: "1px solid rgba(255,255,255,0.04)", paddingTop: 8 }}>
+                      Total stat bonus: +{Object.values(statBoosts).reduce((s, v) => s + v, 0)} across all stats
                     </div>
-                    <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 6 }}>
-                      {["STR", "END", "WIS", "INT", "CON", "VIT"].map(stat => {
-                        const boost = statBoosts[stat] || 0;
-                        const statColor = STAT_COLORS?.[stat] || "#e2b714";
-                        return (
-                          <button key={stat} disabled={skillPoints <= 0}
-                            onClick={() => {
-                              if (skillPoints <= 0) return;
-                              setSkillPoints(p => p - 1);
-                              setStatBoosts(prev => ({ ...prev, [stat]: (prev[stat] || 0) + 10 }));
-                              addLog("buff", `📊 Skill point invested: ${stat} +10`);
-                            }}
-                            style={{
-                              background: skillPoints > 0 ? `${statColor}15` : "rgba(255,255,255,0.02)",
-                              border: `1px solid ${statColor}${skillPoints > 0 ? "44" : "22"}`,
-                              color: skillPoints > 0 ? statColor : "#4b5563",
-                              fontFamily: "'Courier New',monospace", fontSize: 11, fontWeight: 900,
-                              padding: "10px 0", borderRadius: 6,
-                              cursor: skillPoints > 0 ? "pointer" : "default",
-                              display: "flex", flexDirection: "column", alignItems: "center", gap: 2,
-                            }}>
-                            <span>{stat}</span>
-                            {boost > 0 && <span style={{ fontSize: 8, color: statColor, opacity: 0.8 }}>+{boost}</span>}
-                            {skillPoints > 0 && <span style={{ fontSize: 8, color: "#6b7280" }}>+10</span>}
-                          </button>
-                        );
-                      })}
-                    </div>
-                    {skillPoints > 0 && (
-                      <div style={{ fontSize: 9, color: "#6b7280", marginTop: 8 }}>
-                        Each skill point adds +10 to the chosen stat permanently.
-                      </div>
-                    )}
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
             </div>
           </div>
@@ -2046,6 +2109,32 @@ function IronSovereignV2Inner() {
 
         {/* ═══ QUESTS TAB ══════════════════════════════════ */}
         {tab === "quests" && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+            {/* Seasonal Event Quests */}
+            {activeSeason && (
+              <div style={{ background: activeSeason.gradient || "rgba(226,183,20,0.08)", border: `1px solid ${activeSeason.border || "rgba(226,183,20,0.2)"}`, borderRadius: 14, padding: 18 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
+                  <span style={{ fontSize: 28 }}>{activeSeason.icon}</span>
+                  <div>
+                    <div style={{ fontSize: 9, color: activeSeason.color, fontWeight: 900, textTransform: "uppercase", letterSpacing: 3 }}>Seasonal Event</div>
+                    <div style={{ fontSize: 16, fontWeight: 900, color: "#fff" }}>{activeSeason.name} Quests</div>
+                  </div>
+                  <div style={{ marginLeft: "auto", fontSize: 8, color: activeSeason.color, background: `${activeSeason.color}15`, border: `1px solid ${activeSeason.color}30`, borderRadius: 10, padding: "3px 10px", fontWeight: 900 }}>TIME-LIMITED</div>
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(3, 1fr)", gap: 10 }}>
+                  {activeSeason.quests.map(q => (
+                    <div key={q.id} style={{ background: "rgba(0,0,0,0.3)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 10, padding: 12 }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+                        <span style={{ fontSize: 16 }}>{q.icon}</span>
+                        <span style={{ fontSize: 9, color: activeSeason.color, fontWeight: 900 }}>+{q.xp} {q.stat}</span>
+                      </div>
+                      <div style={{ fontSize: 11, fontWeight: 900, color: "#fff", marginBottom: 3 }}>{q.name}</div>
+                      <div style={{ fontSize: 9, color: "#6b7280" }}>{q.desc}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 20 }}>
             <div>
               <div style={S.card}>
@@ -2182,6 +2271,7 @@ function IronSovereignV2Inner() {
                 ))}
               </div>
             </div>
+          </div>
           </div>
         )}
 
@@ -2825,6 +2915,15 @@ function IronSovereignV2Inner() {
         />
       )}
 
+      {/* Weekly Boss Recap */}
+      {showWeeklyRecap && weeklyRecapData && (
+        <WeeklyRecap
+          weekData={weeklyRecapData}
+          hunterRank={hunterRank}
+          onClose={() => { markRecapShown(); setShowWeeklyRecap(false); }}
+        />
+      )}
+
       {/* ── FOOTER ──────────────────────────────────────── */}
       <div style={{ maxWidth: 1200, margin: "20px auto 0", padding: "8px 16px", background: "#0a0d16", borderRadius: 12, border: "1px solid rgba(255,255,255,0.03)", display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 9, color: "#374151", fontFamily: "monospace" }}>
         <div style={{ display: "flex", gap: 16, overflow: "hidden", whiteSpace: "nowrap" }}>
@@ -2833,7 +2932,7 @@ function IronSovereignV2Inner() {
           <span>{">"} HP {hp}/100 • MANA {mana}/{maxMana}</span>
           <span>{">"} {Object.entries(imports).filter(([, v]) => v.status === "success").length}/4 SOURCES SYNCED</span>
         </div>
-        <span style={{ color: "#e2b714", fontWeight: 700, marginLeft: 16 }}>V2.1.0</span>
+        <span style={{ color: "#e2b714", fontWeight: 700, marginLeft: 16 }}>V3.5.0</span>
       </div>
     </div>
   );
