@@ -5,6 +5,7 @@ import {
   BarChart, Bar, ReferenceLine
 } from "recharts";
 import { processImport, submitManualLog } from "./engine/xpEngine.js";
+import { parseRenpho } from "./engine/csvParsers.js";
 import { useXPLedger } from "./hooks/useXPLedger.js";
 import { useCharacterPersistence, useBattleLogPersistence, useNutritionLogPersistence } from "./hooks/usePersistence.js";
 // Quest defaults used for state init + migration — defined at module level for stable ref
@@ -125,6 +126,17 @@ function parseBonus(bonusStr) {
   return result;
 }
 
+const RAID_DEFAULTS = [
+  { id:"raid1", name:"The Cardio Titan",  desc:"Hit step goal 5 days this week",    xp:200, stat:"AGI", type:"raid", done:false, icon:"⚡" },
+  { id:"raid2", name:"The Iron Chef",     desc:"Log 200g+ protein 5 days this week", xp:200, stat:"WIS", type:"raid", done:false, icon:"🥩" },
+  { id:"raid3", name:"The Forge Master",  desc:"Complete 3 workouts this week",      xp:250, stat:"STR", type:"raid", done:false, icon:"🔨" },
+];
+const DEBUFF_TYPES = {
+  atrophy:     { name:"Atrophy",      icon:"💀", color:"#ef4444", desc:"No workout 2+ days — STR halved" },
+  malnourished:{ name:"Malnourished", icon:"🦴", color:"#f97316", desc:"Low protein 2+ days — WIS halved" },
+  exhausted:   { name:"Exhausted",    icon:"😵", color:"#8b5cf6", desc:"Poor sleep 2+ days — VIT halved" },
+};
+
 const GEAR_SLOTS = [
   { slot: "weapon", label: "Weapon", icon: "⚔️" },
   { slot: "offhand", label: "Off-Hand", icon: "🛡️" },
@@ -152,7 +164,7 @@ const INIT_GEAR = [
   { slot: "weapon", name: "Iron Longsword", rarity: "Uncommon", bonus: "STR +3", condition: "Bench 185+", earned: true },
   { slot: "weapon", name: "Battle Axe of the 225 Club", rarity: "Rare", bonus: "STR +5, CON +2", condition: "Bench 225 lb", earned: true },
   { slot: "weapon", name: "Arcane Greatsword", rarity: "Legendary", bonus: "STR +7, INT +5, +10% XP", condition: "Level 40+", earned: false },
-  { slot: "weapon", name: "Sovereign's Blade", rarity: "Mythic", bonus: "ALL +12, +15% XP", condition: "Iron Sovereign tier", earned: false },
+  { slot: "weapon", name: "Sovereign's Blade", rarity: "Mythic", bonus: "ALL +12, +15% XP", condition: "Iron Sovereign tier", earned: false, prestige: true },
   { slot: "body", name: "Novice Vest", rarity: "Common", bonus: "CON +1", condition: "Starter", earned: true },
   { slot: "body", name: "Iron Breastplate", rarity: "Uncommon", bonus: "CON +3", condition: "30 workouts", earned: true },
   { slot: "body", name: "Midnight Plate", rarity: "Epic", bonus: "STR +5, CON +5", condition: "Squat 225+", earned: true },
@@ -180,7 +192,7 @@ const INIT_GEAR = [
   { slot: "feet", name: "Phantom Stride", rarity: "Rare", bonus: "END +4, VIT +2", condition: "100 consecutive 10k days", earned: false },
   { slot: "hands", name: "Grip of the Iron Lord", rarity: "Legendary", bonus: "STR +7", condition: "Bench 275+", earned: false },
   { slot: "neck", name: "Heart of the Phoenix", rarity: "Mythic", bonus: "VIT +10, ALL +3", condition: "200 lbs lost", earned: false },
-  { slot: "ring1", name: "Signet of Sovereignty", rarity: "Legendary", bonus: "ALL +5", condition: "Iron Sovereign tier", earned: false },
+  { slot: "ring1", name: "Signet of Sovereignty", rarity: "Legendary", bonus: "ALL +5", condition: "Iron Sovereign tier", earned: false, prestige: true },
   { slot: "ring2", name: "Ring of the Vanguard", rarity: "Epic", bonus: "END +5, CON +3", condition: "Level 30+", earned: false },
   { slot: "back", name: "Cloak of Discipline", rarity: "Epic", bonus: "WIS +7, CON +3", condition: "100-day cal adherence", earned: false },
   { slot: "offhand", name: "Tome of Ancient Strength", rarity: "Epic", bonus: "STR +4, INT +4", condition: "5,000 sets + 25 books", earned: false },
@@ -190,7 +202,7 @@ const INIT_GEAR = [
   { slot: "body",   name: "Warden's Iron Plate",      rarity: "Legendary", bonus: "STR +7, CON +8",  condition: "Enter Onederland (200 lbs)",             earned: false, svgIcon: "/icons/abdominal-armor.svg" },
   { slot: "feet",   name: "Vanguard Trek Boots",      rarity: "Rare",      bonus: "END +5, INT +3",  condition: "Defeat The Vacation Vanguard (207 lbs)", earned: false, svgIcon: "/icons/steeltoe-boots.svg" },
   { slot: "ring1",  name: "Shadow Signet",            rarity: "Epic",      bonus: "STR +5, END +5",  condition: "Defeat The Heavy Shadow (220 lbs)",     earned: false, svgIcon: "/icons/big-diamond-ring.svg" },
-  { slot: "head",   name: "Crown of the Sovereign",   rarity: "Mythic",    bonus: "ALL +8, +20% XP", condition: "Reach Iron Sovereign tier",             earned: false, svgIcon: "/icons/crown.svg" },
+  { slot: "head",   name: "Crown of the Sovereign",   rarity: "Mythic",    bonus: "ALL +8, +20% XP", condition: "Reach Iron Sovereign tier",             earned: false, svgIcon: "/icons/crown.svg", prestige: true },
   { slot: "hands",  name: "Ironclad Fists",           rarity: "Rare",      bonus: "STR +5, CON +3",  condition: "1,000 push-ups",                        earned: false, svgIcon: "/icons/boxing-glove.svg" },
   { slot: "back",   name: "Cloak of the Burning Eye", rarity: "Epic",      bonus: "STR +6, WIS +4",  condition: "Level 28+",                             earned: false, svgIcon: "/icons/burning-eye.svg" },
 ];
@@ -388,7 +400,7 @@ function IronSovereignV2Inner() {
   });
 
   // ── Streaks ────────────────────────────────────────────────
-  const [streaks, setStreaks] = useState({ workout: 4, protein: 3, trifecta: 0, sleep: 0, steps: 0, cals: 0 });
+  const [streaks, setStreaks] = useState({ workout: 4, protein: 3, trifecta: 0, sleep: 0, steps: 0, cals: 0, weigh: 0 });
 
   const [flavorIdx, setFlavorIdx] = useState(0);
   const [logFilter, setLogFilter] = useState("all");
@@ -401,6 +413,33 @@ function IronSovereignV2Inner() {
 
   // ── Mobile Responsive ──────────────────────────────────────
   const [isMobile, setIsMobile] = useState(() => typeof window !== "undefined" && window.innerWidth < 640);
+
+  // ── New Feature State ──────────────────────────────────────
+  const [dailyWater, setDailyWater] = useState(0);
+
+  const [weightHistory, setWeightHistory] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("iron_sovereign_weight_history")) || []; }
+    catch { return []; }
+  });
+
+  const [raidQuests, setRaidQuests] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("iron_sovereign_raid_quests")) || RAID_DEFAULTS; }
+    catch { return RAID_DEFAULTS; }
+  });
+
+  const [activeDebuffs, setActiveDebuffs] = useState([]);
+
+  const [durability, setDurability] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("iron_sovereign_durability")) || {}; }
+    catch { return {}; }
+  });
+
+  const [prestigeUnlocked, setPrestigeUnlocked] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("iron_sovereign_prestige")) || false; }
+    catch { return false; }
+  });
+
+  const [showPrestigeOverlay, setShowPrestigeOverlay] = useState(false);
 
   // ── Battle Log ─────────────────────────────────────────────
   const [battleLog, setBattleLog] = useState([
@@ -485,6 +524,23 @@ function IronSovereignV2Inner() {
     return total;
   }, [equippedGear]);
 
+  const weightTrend = useMemo(() => {
+    if (weightHistory.length < 2) return [];
+    return weightHistory.map((entry, i) => {
+      const win = weightHistory.slice(Math.max(0, i - 6), i + 1);
+      const avg = win.reduce((s, e) => s + e.weight, 0) / win.length;
+      return { ...entry, avg: Math.round(avg * 10) / 10 };
+    });
+  }, [weightHistory]);
+
+  const weeklyDeficit = useMemo(() => {
+    const recent = macroHistory.slice(0, 7);
+    if (!recent.length || !settings.tdee) return null;
+    const totalCals = recent.reduce((s, d) => s + (d.cals || 0), 0);
+    const deficit = settings.tdee * recent.length - totalCals;
+    return { deficit: Math.round(deficit), days: recent.length, lbsLostEst: (deficit / 3500).toFixed(2) };
+  }, [macroHistory, settings.tdee]);
+
   // ── ACTIONS ────────────────────────────────────────────────
   const castSpell = useCallback((spell) => {
     if (mana < spell.cost) {
@@ -535,6 +591,20 @@ function IronSovereignV2Inner() {
       const diff = weight - w;
       const prevW = weight;
       setWeight(w);
+      // Push to weight history
+      const todayStr = new Date().toLocaleDateString("en-CA", { timeZone: "America/Chicago" });
+      setWeightHistory(prev => {
+        const filtered = prev.filter(e => e.date !== todayStr);
+        return [...filtered, { date: todayStr, weight: w }].sort((a, b) => a.date.localeCompare(b.date)).slice(-90);
+      });
+      // Prestige trigger at 200 lbs
+      if (!prestigeUnlocked && w <= 200) {
+        setPrestigeUnlocked(true);
+        setShowPrestigeOverlay(true);
+        setGear(prev => prev.map(g => g.prestige ? { ...g, earned: true } : g));
+        addLog("buff", "👑 IRON SOVEREIGN PRESTIGE ACHIEVED! Sovereign gear unlocked!");
+        if (settings.soundEnabled) playSounds.levelUp();
+      }
       if (diff > 0) {
         addLog("combat", `⚔️ Weight logged: ${w} lbs (−${diff.toFixed(1)} lbs damage to enemy!)`);
         setHp(prev => Math.min(100, prev + Math.round(diff * 3)));
@@ -641,6 +711,17 @@ function IronSovereignV2Inner() {
       entries.push("Workout: ✅");
     }
 
+    if (!dailyWorkedOut) {
+      setDurability(prev => {
+        const next = { ...prev };
+        ["weapon", "body"].forEach(slot => {
+          const g = equippedGear[slot];
+          if (g) next[g.name] = Math.max(0, (prev[g.name] ?? 100) - 10);
+        });
+        return next;
+      });
+    }
+
     // INT check-in — also write to XP ledger
     const intCount = [intBible, intBook, intLang].filter(Boolean).length;
     if (intCount > 0) {
@@ -658,6 +739,14 @@ function IronSovereignV2Inner() {
       entries.push(`INT: ${digits}`);
     }
 
+    // Water goal
+    if (dailyWater >= (settings.waterTarget || 8)) {
+      setMana(p => Math.min(maxMana, p + 10));
+      addLog("buff", `💧 Hydration goal met (${dailyWater} glasses) — +10 MANA`);
+    } else if (dailyWater > 0) {
+      addLog("system", `💧 Water logged: ${dailyWater}/${settings.waterTarget || 8} glasses`);
+    }
+
     if (entries.length > 0) {
       setNutritionLog(prev => [{ date: new Date().toLocaleDateString(), entries }, ...prev].slice(0, 30));
       addLog("system", `📋 Daily log submitted: ${entries.length} entries recorded.`);
@@ -673,12 +762,16 @@ function IronSovereignV2Inner() {
       setMacroHistory(prev => [{ date:d, protein:parseInt(dailyProtein)||0, cals:parseInt(dailyCals)||0 }, ...prev].slice(0,14));
     }
 
+    setActiveDebuffs([]);
+    setDailyWater(0);
+    localStorage.setItem("iron_sovereign_last_submit", new Date().toISOString());
+
     // Reset form
     setDailyWeight(""); setDailyProtein(""); setDailyCals("");
     setDailySleep(""); setDailySteps(""); setDailyWorkedOut(false);
     setIntBible(false); setIntBook(false); setIntLang(false);
     setShowDailyLog(false);
-  }, [dailyWeight, dailyProtein, dailyCals, dailySleep, dailySteps, dailyWorkedOut, intBible, intBook, intLang, weight, currentPhase, activeBuffs, hp, addLog, maxMana, addToast]);
+  }, [dailyWeight, dailyProtein, dailyCals, dailySleep, dailySteps, dailyWorkedOut, intBible, intBook, intLang, weight, currentPhase, activeBuffs, hp, addLog, maxMana, addToast, dailyWater, settings.waterTarget, prestigeUnlocked, equippedGear]);
 
   // ── CSV Import Handler ─────────────────────────────────────
   const processFile = useCallback((source, file) => {
@@ -740,6 +833,23 @@ function IronSovereignV2Inner() {
             }].slice(-12));
           }
           if (!isNaN(lm)) { setLeanMass(Math.round(lm * 10) / 10); }
+          // Weigh-in streak
+          setStreaks(prev => ({ ...prev, weigh: (prev.weigh || 0) + 1 }));
+          // Populate weight history from renpho data
+          const renphoMap = parseRenpho(rows);
+          const newWEntries = [];
+          for (const [dateStr, m] of renphoMap) {
+            if (m.weightLbs) newWEntries.push({ date: dateStr, weight: Math.round(m.weightLbs * 10) / 10 });
+          }
+          if (newWEntries.length) {
+            setWeightHistory(prev => {
+              const merged = [...prev, ...newWEntries]
+                .sort((a, b) => a.date.localeCompare(b.date))
+                .filter((e, i, arr) => i === 0 || e.date !== arr[i - 1].date);
+              return merged.slice(-90);
+            });
+            addLog("buff", `📈 Weight history updated: ${newWEntries.length} days added.`);
+          }
         }
 
         if (source === "fitbit" && rows.length > 0) {
@@ -898,6 +1008,31 @@ function IronSovereignV2Inner() {
   useEffect(() => { localStorage.setItem("iron_sovereign_prs", JSON.stringify(prs)); }, [prs]);
   useEffect(() => { localStorage.setItem("iron_sovereign_chain_quests", JSON.stringify(chainProgress)); }, [chainProgress]);
 
+  // Debuff check when streaks change
+  useEffect(() => {
+    const lastSubmit = localStorage.getItem("iron_sovereign_last_submit");
+    if (!lastSubmit) return;
+    const daysSince = Math.floor((Date.now() - new Date(lastSubmit).getTime()) / 86400000);
+    if (daysSince < 2) { setActiveDebuffs([]); return; }
+    const debuffs = [];
+    if (!(streaks.workout)) debuffs.push(DEBUFF_TYPES.atrophy);
+    if (!(streaks.protein)) debuffs.push(DEBUFF_TYPES.malnourished);
+    if (!(streaks.sleep))   debuffs.push(DEBUFF_TYPES.exhausted);
+    setActiveDebuffs(debuffs);
+  }, [streaks]); // eslint-disable-line
+
+  useEffect(() => { localStorage.setItem("iron_sovereign_weight_history", JSON.stringify(weightHistory)); }, [weightHistory]);
+  useEffect(() => { localStorage.setItem("iron_sovereign_durability", JSON.stringify(durability)); }, [durability]);
+  useEffect(() => { localStorage.setItem("iron_sovereign_prestige", JSON.stringify(prestigeUnlocked)); }, [prestigeUnlocked]);
+  useEffect(() => { localStorage.setItem("iron_sovereign_raid_quests", JSON.stringify(raidQuests)); }, [raidQuests]);
+
+  useEffect(() => {
+    const lastReset = localStorage.getItem("iron_sovereign_weekly_quest_reset");
+    if (!lastReset) return;
+    const elapsed = Date.now() - new Date(lastReset).getTime();
+    if (elapsed >= 7 * 86400000) setRaidQuests(RAID_DEFAULTS);
+  }, []); // eslint-disable-line
+
   // ── Install handler ────────────────────────────────────────
   const handleInstallApp = useCallback(async () => {
     if (!installPrompt) return;
@@ -988,6 +1123,25 @@ function IronSovereignV2Inner() {
             if (settings.soundEnabled) playSounds.lootDrop(); setPendingLootChest(null);
           }}
         />
+      )}
+      {showPrestigeOverlay && (
+        <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.93)", zIndex:9999, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", fontFamily:"'Courier New',monospace", padding:24 }}>
+          <div style={{ fontSize:64, marginBottom:16 }}>👑</div>
+          <div style={{ fontSize:20, fontWeight:900, color:"#e2b714", letterSpacing:4, textTransform:"uppercase", marginBottom:8 }}>IRON SOVEREIGN</div>
+          <div style={{ fontSize:13, color:"#c9d1d9", marginBottom:6 }}>PRESTIGE ACHIEVED</div>
+          <div style={{ fontSize:11, color:"#6b7280", marginBottom:24, textAlign:"center", maxWidth:300, lineHeight:1.6 }}>
+            You broke the 200lb wall. Three Sovereign items have been added to your armory.
+          </div>
+          <div style={{ display:"flex", gap:8, marginBottom:24, flexWrap:"wrap", justifyContent:"center" }}>
+            {["Sovereign's Blade","Crown of the Sovereign","Signet of Sovereignty"].map(n => (
+              <div key={n} style={{ padding:"6px 12px", background:"rgba(226,183,20,0.1)", border:"1px solid rgba(226,183,20,0.4)", borderRadius:8, fontSize:10, color:"#e2b714" }}>{n}</div>
+            ))}
+          </div>
+          <button onClick={() => setShowPrestigeOverlay(false)}
+            style={{ background:"#e2b714", color:"#0f1320", border:"none", fontFamily:"'Courier New',monospace", fontWeight:900, fontSize:14, padding:"12px 32px", borderRadius:6, cursor:"pointer", letterSpacing:2 }}>
+            CLAIM YOUR CROWN
+          </button>
+        </div>
       )}
 
       {/* ── PWA INSTALL BANNER (Phase 2) ─────────────────── */}
@@ -1118,6 +1272,15 @@ function IronSovereignV2Inner() {
                 <input type="number" placeholder="10000" value={dailySteps} onChange={e => setDailySteps(e.target.value)} style={S.input} />
               </div>
             </div>
+            <div style={{ display:"flex", alignItems:"center", gap:12, padding:"10px 14px", background:"rgba(6,182,212,0.04)", border:"1px solid rgba(6,182,212,0.15)", borderRadius:8, marginBottom:10 }}>
+              <span style={{ fontSize:16 }}>💧</span>
+              <span style={{ fontSize:11, color:"#9ca3af", flex:1 }}>Water — {settings.waterTarget || 8} glass goal</span>
+              <button onClick={() => setDailyWater(p => Math.max(0, p - 1))}
+                style={{ background:"#1e2a3a", border:"1px solid #374151", color:"#c9d1d9", width:30, height:30, borderRadius:6, cursor:"pointer", fontFamily:"'Courier New',monospace", fontSize:18, lineHeight:1 }}>−</button>
+              <span style={{ fontSize:20, fontWeight:900, color: dailyWater >= (settings.waterTarget || 8) ? "#06b6d4" : "#c9d1d9", minWidth:28, textAlign:"center" }}>{dailyWater}</span>
+              <button onClick={() => setDailyWater(p => p + 1)}
+                style={{ background:"#1e2a3a", border:"1px solid #374151", color:"#c9d1d9", width:30, height:30, borderRadius:6, cursor:"pointer", fontFamily:"'Courier New',monospace", fontSize:18, lineHeight:1 }}>+</button>
+            </div>
             <div style={{ display: "flex", gap: 20, alignItems: "center", flexWrap: "wrap" }}>
               <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", fontSize: 12, color: dailyWorkedOut ? "#22c55e" : "#6b7280" }}>
                 <input type="checkbox" checked={dailyWorkedOut} onChange={e => setDailyWorkedOut(e.target.checked)} style={S.checkbox} />
@@ -1211,13 +1374,14 @@ function IronSovereignV2Inner() {
               {/* Streak Dashboard */}
               <div style={{ ...S.card, padding: 16 }}>
                 <div style={{ fontSize: 9, fontWeight: 900, color: "#6b7280", textTransform: "uppercase", letterSpacing: 3, marginBottom: 12 }}>🔥 Active Streaks</div>
-                <div style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(3, 2fr)" : "repeat(6, 1fr)", gap: 8 }}>
+                <div style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(4, 1fr)" : "repeat(7, 1fr)", gap: 8 }}>
                   {[
                     { label: "Workout", value: streaks.workout,  icon: "🏋️" },
                     { label: "Protein", value: streaks.protein,  icon: "🥩" },
                     { label: "Sleep",   value: streaks.sleep || 0, icon: "😴" },
                     { label: "Steps",   value: streaks.steps || 0, icon: "🚶" },
                     { label: "INT",     value: streaks.trifecta, icon: "📖" },
+                    { label: "Weigh-in", value: streaks.weigh || 0, icon: "⚖️" },
                   ].map(s => {
                     const v = s.value || 0;
                     const flameColor = v >= 14 ? "#ef4444" : v >= 7 ? "#e2b714" : v >= 3 ? "#22c55e" : "#6b7280";
@@ -1237,6 +1401,21 @@ function IronSovereignV2Inner() {
                   </div>
                 </div>
               </div>
+              {activeDebuffs.length > 0 && (
+                <div style={{ ...S.card, border:"1px solid rgba(239,68,68,0.3)", background:"rgba(239,68,68,0.03)", marginTop:10 }}>
+                  <div style={{ fontSize:9, color:"#ef4444", fontWeight:900, letterSpacing:3, textTransform:"uppercase", marginBottom:10 }}>⚠️ ACTIVE DEBUFFS</div>
+                  <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
+                    {activeDebuffs.map((d, i) => (
+                      <div key={i} style={{ padding:"8px 14px", background:"rgba(239,68,68,0.06)", border:`1px solid ${d.color}44`, borderRadius:10, textAlign:"center" }}>
+                        <div style={{ fontSize:22 }}>{d.icon}</div>
+                        <div style={{ fontSize:10, fontWeight:900, color:d.color, marginTop:2 }}>{d.name}</div>
+                        <div style={{ fontSize:9, color:"#6b7280", marginTop:2 }}>{d.desc}</div>
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{ fontSize:9, color:"#6b7280", marginTop:8 }}>Submit daily log to clear all debuffs.</div>
+                </div>
+              )}
             </div>
 
             {/* Battle Log */}
@@ -1412,6 +1591,12 @@ function IronSovereignV2Inner() {
                     ))}
                   </div>
                 </div>
+                {prestigeUnlocked && (
+                  <div style={{ marginTop:12, padding:"10px 16px", background:"linear-gradient(135deg,rgba(226,183,20,0.1),rgba(239,68,68,0.06))", border:"1px solid rgba(226,183,20,0.35)", borderRadius:10, textAlign:"center" }}>
+                    <div style={{ fontSize:10, color:"#e2b714", fontWeight:900, letterSpacing:3, textTransform:"uppercase" }}>⚔️ IRON SOVEREIGN ⚔️</div>
+                    <div style={{ fontSize:9, color:"#6b7280", marginTop:3 }}>Prestige Unlocked — 200lb Wall Broken</div>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -1480,6 +1665,32 @@ function IronSovereignV2Inner() {
                             <span style={{ fontSize: 8, color: "#374151" }}>{GEAR_SLOTS.find(s => s.slot === g.slot)?.icon}</span>
                           )}
                         </div>
+                        {g.earned && (() => {
+                          const dur = durability[g.name] ?? 100;
+                          return (
+                            <div style={{ marginTop:5 }}>
+                              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:2 }}>
+                                <span style={{ fontSize:8, color: dur === 0 ? "#ef4444" : "#6b7280", letterSpacing:1, textTransform:"uppercase" }}>
+                                  {dur === 0 ? "⚠️ BROKEN" : `Durability ${dur}%`}
+                                </span>
+                                {dur < 100 && (
+                                  <button onClick={e => {
+                                    e.stopPropagation();
+                                    if (mana < 20) { addLog("detriment","❌ Need 20 MANA to repair"); return; }
+                                    setMana(p => p - 20);
+                                    setDurability(prev => ({ ...prev, [g.name]: Math.min(100, (prev[g.name] ?? 0) + 30) }));
+                                    addLog("buff", `🔧 Repaired ${g.name} (+30% durability)`);
+                                  }} style={{ fontSize:8, background:"rgba(226,183,20,0.1)", border:"1px solid rgba(226,183,20,0.3)", color:"#e2b714", padding:"1px 6px", borderRadius:3, cursor:"pointer", fontFamily:"'Courier New',monospace" }}>
+                                    Repair 20🔮
+                                  </button>
+                                )}
+                              </div>
+                              <div style={{ height:3, background:"#1a1f2e", borderRadius:2 }}>
+                                <div style={{ height:"100%", width:`${dur}%`, background: dur > 50 ? "#22c55e" : dur > 20 ? "#e2b714" : "#ef4444", borderRadius:2 }} />
+                              </div>
+                            </div>
+                          );
+                        })()}
                       </div>
                     );
                   })}
@@ -1609,6 +1820,36 @@ function IronSovereignV2Inner() {
                   })}
                   onDelete={(id) => setDailyQuests(prev => prev.filter(q => q.id !== id))}
                 />
+              </div>
+
+              <div style={{ ...S.card, marginTop:16, border:"1px solid rgba(249,115,22,0.25)" }}>
+                <h3 style={{ ...S.sectionTitle, color:"#f97316", marginBottom:14 }}>⚡ Weekly Raid Bosses
+                  <span style={{ fontSize:9, color:"#6b7280", fontWeight:400, marginLeft:8 }}>resets weekly · mark done when achieved</span>
+                </h3>
+                {raidQuests.map(q => (
+                  <div key={q.id} style={{ display:"flex", alignItems:"center", gap:10, padding:"12px 14px", marginBottom:8,
+                    background: q.done ? "rgba(34,197,94,0.04)" : "rgba(249,115,22,0.04)",
+                    border:`1px solid ${q.done ? "rgba(34,197,94,0.2)" : "rgba(249,115,22,0.2)"}`,
+                    borderRadius:10, opacity: q.done ? 0.6 : 1 }}>
+                    <input type="checkbox" checked={q.done}
+                      style={{ accentColor:"#f97316", width:18, height:18, cursor:"pointer", flexShrink:0 }}
+                      onChange={() => {
+                        const nowDone = !q.done;
+                        setRaidQuests(prev => prev.map(r => r.id === q.id ? { ...r, done: nowDone } : r));
+                        if (nowDone) {
+                          addLog("buff", `⚡ RAID BOSS DEFEATED: ${q.name} (+${q.xp} ${q.stat} XP!)`);
+                          spawnPopup(`+${q.xp} ${q.stat}`, STAT_COLORS[q.stat] || "#f97316");
+                          addToast("achievement", `⚡ Raid Boss down: ${q.name}!`);
+                        }
+                      }} />
+                    <span style={{ fontSize:22, flexShrink:0 }}>{q.icon}</span>
+                    <div style={{ flex:1 }}>
+                      <div style={{ fontSize:12, fontWeight:900, color: q.done ? "#22c55e" : "#f97316" }}>{q.name}</div>
+                      <div style={{ fontSize:10, color:"#6b7280" }}>{q.desc}</div>
+                    </div>
+                    <span style={{ fontSize:11, color:"#e2b714", fontWeight:700, background:"rgba(226,183,20,0.1)", padding:"3px 10px", borderRadius:4, flexShrink:0 }}>+{q.xp} {q.stat}</span>
+                  </div>
+                ))}
               </div>
 
               {/* Boss fights */}
@@ -1780,6 +2021,44 @@ function IronSovereignV2Inner() {
                 </div>
               );
             })()}
+
+            {weeklyDeficit && (
+              <div style={{ ...S.card, display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+                <div>
+                  <div style={{ fontSize:9, color:"#22c55e", fontWeight:900, letterSpacing:2, textTransform:"uppercase" }}>🔥 Weekly Deficit</div>
+                  <div style={{ fontSize:26, fontWeight:900, color:"#22c55e", marginTop:4 }}>{weeklyDeficit.deficit.toLocaleString()}<span style={{ fontSize:10, color:"#6b7280", marginLeft:4 }}>kcal</span></div>
+                  <div style={{ fontSize:10, color:"#6b7280" }}>{weeklyDeficit.days} days tracked vs {(settings.tdee||2500).toLocaleString()} TDEE</div>
+                </div>
+                <div style={{ textAlign:"right" }}>
+                  <div style={{ fontSize:9, color:"#6b7280", textTransform:"uppercase", letterSpacing:1, marginBottom:4 }}>Est. fat lost</div>
+                  <div style={{ fontSize:32, fontWeight:900, color:"#e2b714" }}>{weeklyDeficit.lbsLostEst}</div>
+                  <div style={{ fontSize:9, color:"#6b7280" }}>lbs this week</div>
+                </div>
+              </div>
+            )}
+
+            {weightTrend.length > 1 && (
+              <div style={S.card}>
+                <h3 style={{ ...S.sectionTitle, marginBottom:12 }}>⚖️ Bodyweight Trend
+                  <span style={{ fontSize:9, color:"#6b7280", fontWeight:400, marginLeft:8 }}>actual (faint) · 7-day avg (solid)</span>
+                </h3>
+                <ResponsiveContainer width="100%" height={140}>
+                  <AreaChart data={weightTrend} margin={{ top:4, right:4, bottom:4, left:-20 }}>
+                    <defs>
+                      <linearGradient id="wtG" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#e2b714" stopOpacity={0.15}/>
+                        <stop offset="100%" stopColor="#e2b714" stopOpacity={0}/>
+                      </linearGradient>
+                    </defs>
+                    <XAxis dataKey="date" tick={{ fill:"#6b7280", fontSize:9, fontFamily:"'Courier New',monospace" }} axisLine={false} tickLine={false} interval="preserveStartEnd" />
+                    <YAxis domain={["auto","auto"]} tick={{ fill:"#6b7280", fontSize:9 }} axisLine={false} tickLine={false} />
+                    <Tooltip contentStyle={{ background:"#0f1320", border:"1px solid #374151", fontFamily:"'Courier New',monospace", fontSize:11 }} labelStyle={{ color:"#e2b714" }} />
+                    <Area type="monotone" dataKey="weight" stroke="#e2b714" strokeWidth={1} strokeOpacity={0.4} fill="url(#wtG)" dot={false} name="Weight (lbs)" />
+                    <Area type="monotone" dataKey="avg" stroke="#e2b714" strokeWidth={2.5} fill="none" dot={false} name="7-day avg" />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            )}
 
             {macroHistory.length > 0 && (
               <div style={S.card}>
