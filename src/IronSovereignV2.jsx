@@ -214,6 +214,42 @@ const INIT_GEAR = [
   { slot: "head",   name: "Crown of the Sovereign",   rarity: "Mythic",    bonus: "ALL +8, +20% XP", condition: "Reach Iron Sovereign tier",             earned: false, svgIcon: "/icons/crown.svg", prestige: true },
   { slot: "hands",  name: "Ironclad Fists",           rarity: "Rare",      bonus: "STR +5, CON +3",  condition: "1,000 push-ups",                        earned: false, svgIcon: "/icons/boxing-glove.svg" },
   { slot: "back",   name: "Cloak of the Burning Eye", rarity: "Epic",      bonus: "STR +6, WIS +4",  condition: "Level 28+",                             earned: false, svgIcon: "/icons/burning-eye.svg" },
+  // ── ENDGAME DROP POOL — RARE (15) ────────────────────────────────────────
+  { slot: "weapon",  name: "Iron Discipline Blade",  rarity: "Rare",      bonus: "STR +3, WIS +2",         condition: "30-day workout consistency",          earned: false },
+  { slot: "body",    name: "Survivor's Chainmail",   rarity: "Rare",      bonus: "CON +4, VIT +2",         condition: "30 days weight logged",               earned: false },
+  { slot: "head",    name: "Tracker's Visor",        rarity: "Rare",      bonus: "INT +3, WIS +2",         condition: "60 days of data tracked",             earned: false },
+  { slot: "feet",    name: "Night Stalker Treads",   rarity: "Rare",      bonus: "END +3, INT +2",         condition: "30 days 8k+ steps",                   earned: false },
+  { slot: "neck",    name: "Stone of Persistence",   rarity: "Rare",      bonus: "CON +3, END +2",         condition: "15-day daily log streak",             earned: false },
+  { slot: "ring2",   name: "Band of Recovery",       rarity: "Rare",      bonus: "VIT +4, CON +2",         condition: "7 consecutive nights 8h+ sleep",      earned: false },
+  { slot: "offhand", name: "Grimoire of Gains",      rarity: "Rare",      bonus: "WIS +3, STR +2",         condition: "100g+ protein 14 consecutive days",   earned: false },
+  { slot: "hands",   name: "Chalk-Dusted Wraps",     rarity: "Rare",      bonus: "STR +3, END +2",         condition: "500 sets logged",                     earned: false },
+  { slot: "back",    name: "Sweat-Stained Cloak",    rarity: "Rare",      bonus: "END +3, STR +2",         condition: "30 consecutive workouts",             earned: false },
+  { slot: "feet",    name: "Sprinter's Quickboots",  rarity: "Rare",      bonus: "END +4, VIT +1",         condition: "50k steps in a single week",          earned: false },
+  { slot: "weapon",  name: "Fiber-Wrapped Mace",     rarity: "Rare",      bonus: "CON +4, WIS +2",         condition: "Log fiber for 30 days",               earned: false },
+  { slot: "head",    name: "Sweatband of Focus",     rarity: "Rare",      bonus: "INT +4, WIS +1",         condition: "14-day calorie log streak",           earned: false },
+  { slot: "body",    name: "Compression Rune Vest",  rarity: "Rare",      bonus: "END +3, CON +3",         condition: "500 total miles (steps)",             earned: false },
+  { slot: "ring1",   name: "Ring of the Early Riser",rarity: "Rare",      bonus: "VIT +3, INT +2",         condition: "14 consecutive nights 7h+ sleep",     earned: false },
+  { slot: "neck",    name: "Ironwood Amulet",        rarity: "Rare",      bonus: "STR +3, CON +3",         condition: "20 workouts in a month",              earned: false },
+  // ── ENDGAME DROP POOL — EPIC (10) ────────────────────────────────────────
+  { slot: "weapon",  name: "Voidsteel Spear",        rarity: "Epic",      bonus: "STR +7, END +5",         condition: "Level 25+",                           earned: false },
+  { slot: "body",    name: "Obsidian Plate",          rarity: "Epic",      bonus: "CON +6, STR +5",         condition: "60 total workouts logged",            earned: false },
+  { slot: "head",    name: "Helm of the Unbroken",   rarity: "Epic",      bonus: "STR +6, WIS +5",         condition: "30-day workout streak",               earned: false },
+  { slot: "feet",    name: "Riftwalker Greaves",      rarity: "Epic",      bonus: "END +7, INT +4",         condition: "1 million lifetime steps",            earned: false },
+  { slot: "offhand", name: "Crystal Codex",           rarity: "Epic",      bonus: "INT +7, WIS +5",         condition: "50 chapters tracked",                 earned: false },
+  { slot: "hands",   name: "Titanfall Gauntlets",     rarity: "Epic",      bonus: "STR +6, CON +5",         condition: "500 sets in a single month",          earned: false },
+  { slot: "back",    name: "Ember Shroud",            rarity: "Epic",      bonus: "VIT +6, END +5",         condition: "60-day tracking streak",              earned: false },
+  { slot: "ring2",   name: "Sigil of the Grind",      rarity: "Epic",      bonus: "STR +5, END +5, CON +3", condition: "2,000 sets logged",                   earned: false },
+  { slot: "neck",    name: "Amulet of Iron Will",     rarity: "Epic",      bonus: "WIS +6, CON +5",         condition: "90-day nutrition log",                earned: false },
+  { slot: "hands",   name: "Forge-King Knuckles",     rarity: "Epic",      bonus: "STR +8, VIT +4",         condition: "Bench 245+",                          earned: false },
+  // ── ENDGAME DROP POOL — LEGENDARY (5) ────────────────────────────────────
+  { slot: "weapon",  name: "Runebound Executioner",  rarity: "Legendary", bonus: "STR +10, END +6, +10% STR XP", condition: "Deadlift 405+",              earned: false },
+  { slot: "head",    name: "Crown of the Iron Mind", rarity: "Legendary", bonus: "INT +9, WIS +8, +15% WIS XP",  condition: "1 year of data tracked",     earned: false },
+  { slot: "feet",    name: "Sovereign's Stride",     rarity: "Legendary", bonus: "END +10, VIT +6",              condition: "Reach A-Rank (195 lbs)",     earned: false },
+  { slot: "offhand", name: "Codex Ultima",           rarity: "Legendary", bonus: "ALL +6, +12% XP",              condition: "Level 45+",                  earned: false },
+  { slot: "ring2",   name: "Ring of the Limitless",  rarity: "Legendary", bonus: "STR +8, END +8, WIS +6",       condition: "All stats above 1,000",      earned: false },
+  // ── ENDGAME DROP POOL — MYTHIC (2) ───────────────────────────────────────
+  { slot: "back",    name: "Mantle of Eternity",     rarity: "Mythic",    bonus: "ALL +8, +20% XP, MANA +25",    condition: "365 total days tracked",     earned: false },
+  { slot: "neck",    name: "Soul of the Sovereign",  rarity: "Mythic",    bonus: "ALL +10, MANA +30",            condition: "S-Rank: Reach 185 lbs",      earned: false },
 ];
 
 const INIT_PETS = [
@@ -634,12 +670,24 @@ function IronSovereignV2Inner() {
           addLog("buff", `👑 BOSS QUEST COMPLETE! Gold loot chest unlocked!`);
         }
         // Gear drop on quest completion
-        const questDropChances = { daily: 0.05, weekly: 0.15, boss: 0.30, raid: 0.25 };
-        const dropChance = questDropChances[q.type] || 0.05;
+        const questDropChances = { daily: 0.03, weekly: 0.10, boss: 0.45, raid: 0.20 };
+        const dropChance = questDropChances[q.type] || 0.03;
         if (Math.random() < dropChance) {
           const dropPool = gear.filter(g => !g.earned && !g.prestige);
           if (dropPool.length > 0) {
-            const dropped = dropPool[Math.floor(Math.random() * dropPool.length)];
+            // Rarity-tiered selection: bosses bias heavily toward Legendary/Mythic
+            const rarityWeights = {
+              daily:  [["Rare", 1.00]],
+              weekly: [["Rare", 0.70], ["Epic", 1.00]],
+              boss:   [["Rare", 0.10], ["Epic", 0.55], ["Legendary", 0.90], ["Mythic", 1.00]],
+              raid:   [["Rare", 0.40], ["Epic", 0.80], ["Legendary", 0.98], ["Mythic", 1.00]],
+            };
+            const roll2 = Math.random();
+            const tiers = rarityWeights[q.type] || rarityWeights.daily;
+            const targetRarity = (tiers.find(([, thresh]) => roll2 < thresh) || tiers[tiers.length - 1])[0];
+            const tieredPool = dropPool.filter(g => g.rarity === targetRarity);
+            const finalPool = tieredPool.length > 0 ? tieredPool : dropPool;
+            const dropped = finalPool[Math.floor(Math.random() * finalPool.length)];
             setGear(prev => prev.map(g => g.name === dropped.name ? { ...g, earned: true } : g));
             addLog("buff", `🎲 LOOT DROP! ${dropped.icon || "⚔️"} ${dropped.name} (${dropped.rarity}) dropped from quest!`);
             setPendingLootChest({ tier: dropped.rarity === "Legendary" || dropped.rarity === "Mythic" ? "gold" : dropped.rarity === "Epic" || dropped.rarity === "Rare" ? "silver" : "bronze", item: dropped });
@@ -2089,10 +2137,15 @@ function IronSovereignV2Inner() {
                           spawnPopup(`+${q.xp} ${q.stat}`, STAT_COLORS[q.stat] || "#f97316");
                           addToast("achievement", `⚡ Raid Boss down: ${q.name}!`);
                           // Gear drop on raid completion
-                          if (Math.random() < 0.25) {
+                          if (Math.random() < 0.20) {
                             const dropPool = gear.filter(g => !g.earned && !g.prestige);
                             if (dropPool.length > 0) {
-                              const dropped = dropPool[Math.floor(Math.random() * dropPool.length)];
+                              const roll2 = Math.random();
+                              const raidTiers = [["Rare", 0.40], ["Epic", 0.80], ["Legendary", 0.98], ["Mythic", 1.00]];
+                              const targetRarity = (raidTiers.find(([, thresh]) => roll2 < thresh) || raidTiers[raidTiers.length - 1])[0];
+                              const tieredPool = dropPool.filter(g => g.rarity === targetRarity);
+                              const finalPool = tieredPool.length > 0 ? tieredPool : dropPool;
+                              const dropped = finalPool[Math.floor(Math.random() * finalPool.length)];
                               setGear(prev => prev.map(g => g.name === dropped.name ? { ...g, earned: true } : g));
                               addLog("buff", `🎲 LOOT DROP! ${dropped.icon || "⚔️"} ${dropped.name} (${dropped.rarity}) dropped from raid!`);
                               setPendingLootChest({ tier: dropped.rarity === "Legendary" || dropped.rarity === "Mythic" ? "gold" : dropped.rarity === "Epic" || dropped.rarity === "Rare" ? "silver" : "bronze", item: dropped });
