@@ -5,6 +5,23 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [v3.4] — 2026-02-28
+### Added
+- **Hunter Rank system** — E→D→C→B→A→S based on body weight (back-calculated from S=185 lbs goal, 10 lb intervals)
+  - E-Rank Iron Novice: > 225 lbs · D-Rank Iron Initiate: ≤ 225 · C-Rank Iron Hunter: ≤ 215 · B-Rank Iron Knight: ≤ 205 · A-Rank Iron Commander: ≤ 195 · S-Rank Iron Sovereign: ≤ 185
+  - Rank badge in HUD next to name/level
+  - Full card in Character tab with lbs-to-next-rank progress display
+  - Rank-up fires toast + battle log entry + level-up sound
+- **Skill Points on level-up** — +2 pts (levels 1–10), +3 pts (11–20), +4 pts (21+) per level gained
+  - Allocation panel in Character tab: spend 1 point to add +10 permanently to any stat
+  - Persisted to `iron_sovereign_skill_points` and `iron_sovereign_stat_boosts`
+- **Gear Drops from quest completion** — random chance to drop unearned gear items
+  - Daily: 5% · Weekly: 15% · Boss: 30% · Raid: 25%
+  - Triggers existing LootChest overlay with tier matched to gear rarity (Mythic/Legendary=gold, Epic/Rare=silver, else bronze)
+  - Battle log shows "🎲 LOOT DROP!" with item name and rarity
+
+---
+
 ## [v3.3] — 2026-02-28
 ### Added
 - **Today at a Glance** — 5-stat summary card at top of Battle tab (weight, calories, protein, water, workout status)

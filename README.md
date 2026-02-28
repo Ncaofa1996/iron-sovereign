@@ -333,12 +333,12 @@ Features inspired by the above apps, not yet built:
 
 | Feature | Inspiration | Priority |
 |---------|-------------|----------|
-| Hunter rank advancement (E→S class) | Solo Leveling | High |
+| ~~Hunter rank advancement (E→S class)~~ | ~~Solo Leveling~~ | ✅ v3.4 |
 | Bad habit tracker → HP damage | Habitica | High |
 | Timed quests with failure penalties | FitRPG | High |
 | Boss HP bar visualization | Habitica | Medium |
-| Skill point allocation on level-up | FitRPG / Fitscape | Medium |
-| Quest drop system (random gear) | Habitica | Medium |
+| ~~Skill point allocation on level-up~~ | ~~FitRPG / Fitscape~~ | ✅ v3.4 |
+| ~~Quest drop system (random gear)~~ | ~~Habitica~~ | ✅ v3.4 |
 | Custom MANA-cost personal rewards | Habitica | Medium |
 | Dungeon run system (multi-stage) | Fitscape / LevelUP | Medium |
 | Pet evolution → mounts | Habitica | Low |
@@ -369,3 +369,4 @@ Features inspired by the above apps, not yet built:
 | V3.1 | GitHub infrastructure: labels, issue templates, PR template, CI workflow |
 | V3.2 | Tracking + RPG Mechanics: weigh-in streak, calorie deficit tracker, water counter, bodyweight trend line, prestige system, raid boss events, debuff system, gear durability |
 | V3.3 | UI/QoL: Today at a Glance, 84-day activity heatmap, milestone notes, export CSV, import diff panel, light/dark theme, push notification reminders |
+| V3.4 | Hunter Rank (E→S, weight-based, S=185 lbs goal), Skill Points on level-up, Gear Drops from quests |
