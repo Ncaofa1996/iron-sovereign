@@ -670,8 +670,8 @@ function IronSovereignV2Inner() {
           addLog("buff", `👑 BOSS QUEST COMPLETE! Gold loot chest unlocked!`);
         }
         // Gear drop on quest completion
-        const questDropChances = { daily: 0.03, weekly: 0.10, boss: 0.45, raid: 0.20 };
-        const dropChance = questDropChances[q.type] || 0.03;
+        const questDropChances = { daily: 0.20, weekly: 0.45, boss: 0.80, raid: 0.60 };
+        const dropChance = questDropChances[q.type] || 0.20;
         if (Math.random() < dropChance) {
           const dropPool = gear.filter(g => !g.earned && !g.prestige);
           if (dropPool.length > 0) {
@@ -2137,7 +2137,7 @@ function IronSovereignV2Inner() {
                           spawnPopup(`+${q.xp} ${q.stat}`, STAT_COLORS[q.stat] || "#f97316");
                           addToast("achievement", `⚡ Raid Boss down: ${q.name}!`);
                           // Gear drop on raid completion
-                          if (Math.random() < 0.20) {
+                          if (Math.random() < 0.60) {
                             const dropPool = gear.filter(g => !g.earned && !g.prestige);
                             if (dropPool.length > 0) {
                               const roll2 = Math.random();
