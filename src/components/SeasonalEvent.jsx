@@ -10,6 +10,7 @@ const SEASONS = [
     color: "#60a5fa",
     gradient: "linear-gradient(135deg, rgba(96,165,250,0.15), rgba(16,42,80,0.4))",
     border: "rgba(96,165,250,0.3)",
+    uiColors: { primary: "#93c5fd", secondary: "#e0f2fe", glow: "rgba(147,197,253,0.55)", badge: "linear-gradient(135deg, #1e40af, #60a5fa, #bae6fd)" },
     tagline: "The citadel holds — or falls. Defend with iron.",
     bonus: "Strength quests grant +15 XP this season",
     quests: [
@@ -26,6 +27,7 @@ const SEASONS = [
     color: "#4ade80",
     gradient: "linear-gradient(135deg, rgba(74,222,128,0.12), rgba(20,60,30,0.4))",
     border: "rgba(74,222,128,0.3)",
+    uiColors: { primary: "#4ade80", secondary: "#bbf7d0", glow: "rgba(74,222,128,0.45)", badge: "linear-gradient(135deg, #166534, #4ade80, #bbf7d0)" },
     tagline: "New growth, new power. The Phoenix rises.",
     bonus: "Endurance quests grant +15 XP this season",
     quests: [
@@ -42,6 +44,7 @@ const SEASONS = [
     color: "#fb923c",
     gradient: "linear-gradient(135deg, rgba(251,146,60,0.15), rgba(80,30,10,0.4))",
     border: "rgba(251,146,60,0.3)",
+    uiColors: { primary: "#fb923c", secondary: "#fbbf24", glow: "rgba(251,146,60,0.5)", badge: "linear-gradient(135deg, #b45309, #fb923c, #fde68a)" },
     tagline: "The heat of battle drives you forward. Conquer.",
     bonus: "Volume PRs grant double XP this season",
     quests: [
@@ -58,6 +61,7 @@ const SEASONS = [
     color: "#f59e0b",
     gradient: "linear-gradient(135deg, rgba(245,158,11,0.12), rgba(60,35,5,0.4))",
     border: "rgba(245,158,11,0.3)",
+    uiColors: { primary: "#f59e0b", secondary: "#f87171", glow: "rgba(245,158,11,0.45)", badge: "linear-gradient(135deg, #78350f, #f59e0b, #fde68a)" },
     tagline: "Claim your gains before the long winter returns.",
     bonus: "Nutrition consistency grants +15 XP this season",
     quests: [
