@@ -42,6 +42,7 @@ export function useCharacterPersistence() {
     streaks: { workout: 4, protein: 3, trifecta: 0 },
     activePet: 0,
     activeBuffs: [],
+    weeklyVolume: { CHEST: 0, BACK: 0, SHOULDERS: 0, QUADS: 0, HAMSTRINGS: 0, BICEPS: 0, TRICEPS: 0, ABS: 0, CALVES: 0 },
   };
   return useLocalStorage('iron_sovereign_character', defaults);
 }

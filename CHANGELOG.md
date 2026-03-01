@@ -5,6 +5,17 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [v3.7] — 2026-03-01
+### Added
+- **Unified Sync Hub** (`src/IronSovereignV2.jsx`) — Replaced multiple source-specific zones with a single "⚡ Unified Sync" drop zone. Features an auto-detection engine (`detectSource`) that identifies Liftosaur, Cronometer, Renpho, or Apple Health formats from headers.
+- **Muscle Group Volume Heatmap** (`src/components/VolumeHeatmap.jsx`) — Visualizes weekly training volume per muscle group (Chest, Back, Quads, etc.) against Jeff Nippard's **10-20 sets/week** hypertrophy guidelines.
+- **Metabolic Intelligence Dashboard** (`src/components/MetabolicIntelligence.jsx`) — Implements functional medicine logic from Dr. Mark Hyman. Estimates **Insulin Sensitivity** (0-100%) and awards **Gut Health Buffs** based on fiber intake (25g-40g+ targets).
+- **Muscle Group Mapping** (`src/utils/muscleGroups.js`) — Intelligent categorization of exercises into primary muscle groups for volume tracking.
+- **Metabolic Logic Engine** (`src/utils/metabolicHealth.js`) — Cross-references body fat, visceral fat, steps, and muscle mass to estimate metabolic health and flexibility.
+- localStorage: `iron_sovereign_weekly_volume`, `iron_sovereign_visceral_fat`, `iron_sovereign_avg_fiber`.
+
+---
+
 ## [v3.6] — 2026-02-28
 ### Added
 - **Trophy Room** (`src/components/TrophyRoom.jsx`) — full-screen achievement gallery modal with filter tabs (ALL / EARNED / LOCKED / MILESTONE / STREAK / BOSS), 3-column grid, stat-colored glow on earned cards

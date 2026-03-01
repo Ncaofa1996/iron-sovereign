@@ -61,6 +61,9 @@ import WeeklyRecap, { shouldShowRecap, markRecapShown, getWeekStart } from "./co
 import TrophyRoom from "./components/TrophyRoom.jsx";
 import AchievementToast from "./components/AchievementToast.jsx";
 import DailyChallenge from "./components/DailyChallenge.jsx";
+import VolumeHeatmap from "./components/VolumeHeatmap.jsx";
+import MetabolicIntelligence from "./components/MetabolicIntelligence.jsx";
+import { getMuscleGroup } from "./utils/muscleGroups.js";
 import { checkAchievements } from "./utils/achievementChecker.js";
 import { injectGlobalAnimations } from "./utils/animations.js";
 import { injectResponsiveStyles } from "./utils/responsive.js";
@@ -326,6 +329,19 @@ function parseCSVRows(text) {
   });
 }
 
+function detectSource(headers) {
+  const h = headers.join(",").toLowerCase();
+  // Liftosaur: Date, Exercise Name, Reps, Weight
+  if (h.includes("exercise name") || (h.includes("reps") && h.includes("exercise"))) return "liftosaur";
+  // Cronometer: Energy (kcal), Protein (g)
+  if (h.includes("energy (kcal)") || h.includes("protein (g)")) return "cronometer";
+  // Renpho: Weight(lb), Body Fat(%)
+  if (h.includes("weight(lb)") || h.includes("body fat(%)")) return "renpho";
+  // Fitbit / Apple Health: Steps, Active Calories, Exercise Minutes
+  if (h.includes("steps") || h.includes("active calorie") || h.includes("exercise minute") || h.includes("activities date")) return "fitbit";
+  return null;
+}
+
 // ── STYLES ─────────────────────────────────────────────────────
 const S = {
   card: { background: "#0f1320", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 20, padding: 20 },
@@ -400,10 +416,11 @@ function IronSovereignV2Inner() {
     cronometer: { status: "none", rows: 0, lastSync: null },
     renpho: { status: "none", rows: 0, lastSync: null },
     fitbit: { status: "none", rows: 0, lastSync: null },
+    unified: { status: "none", rows: 0, lastSync: null },
   });
-  const [importedData, setImportedData] = useState({ liftosaur: [], cronometer: [], renpho: [], fitbit: [] });
-  const fileRefs = { liftosaur: useRef(), cronometer: useRef(), renpho: useRef(), fitbit: useRef() };
-  const [importLoading, setImportLoading] = useState({ liftosaur: false, cronometer: false, renpho: false, fitbit: false });
+  const [importedData, setImportedData] = useState({ liftosaur: [], cronometer: [], renpho: [], fitbit: [], unified: [] });
+  const fileRefs = { liftosaur: useRef(), cronometer: useRef(), renpho: useRef(), fitbit: useRef(), unified: useRef() };
+  const [importLoading, setImportLoading] = useState({ liftosaur: false, cronometer: false, renpho: false, fitbit: false, unified: false });
   const [hubDragActive, setHubDragActive] = useState(false);
 
   // ── Stats State (editable overrides) ───────────────────────
@@ -417,6 +434,28 @@ function IronSovereignV2Inner() {
   const [proteinAvg, setProteinAvg] = useState(191);
   const [dayCount, setDayCount] = useState(1097);
   const [editingStat, setEditingStat] = useState(null);
+  const [weeklyVolume, setWeeklyVolume] = useState(() => {
+    try {
+      const saved = localStorage.getItem("iron_sovereign_weekly_volume");
+      return saved ? JSON.parse(saved) : { CHEST: 0, BACK: 0, SHOULDERS: 0, QUADS: 0, HAMSTRINGS: 0, BICEPS: 0, TRICEPS: 0, ABS: 0, CALVES: 0 };
+    } catch {
+      return { CHEST: 0, BACK: 0, SHOULDERS: 0, QUADS: 0, HAMSTRINGS: 0, BICEPS: 0, TRICEPS: 0, ABS: 0, CALVES: 0 };
+    }
+  });
+
+  useEffect(() => {
+    localStorage.setItem("iron_sovereign_weekly_volume", JSON.stringify(weeklyVolume));
+  }, [weeklyVolume]);
+
+  const [visceralFat, setVisceralFat] = useState(() => {
+    return parseFloat(localStorage.getItem("iron_sovereign_visceral_fat")) || 10;
+  });
+  const [avgFiber, setAvgFiber] = useState(() => {
+    return parseFloat(localStorage.getItem("iron_sovereign_avg_fiber")) || 25;
+  });
+
+  useEffect(() => { localStorage.setItem("iron_sovereign_visceral_fat", visceralFat.toString()); }, [visceralFat]);
+  useEffect(() => { localStorage.setItem("iron_sovereign_avg_fiber", avgFiber.toString()); }, [avgFiber]);
 
   // ── Phase 2: PWA install ───────────────────────────────────
   const [installPrompt, setInstallPrompt] = useState(null);
@@ -924,19 +963,43 @@ function IronSovereignV2Inner() {
     const reader = new FileReader();
     reader.onload = (ev) => {
       try {
+        const text = ev.target.result;
+        const rows = parseCSVRows(text);
+        if (!rows.length) {
+          setImportLoading(prev => ({ ...prev, [source]: false }));
+          addToast("error", "Empty CSV file.");
+          return;
+        }
+
+        let actualSource = source;
+        if (source === "unified") {
+          const headers = Object.keys(rows[0]);
+          actualSource = detectSource(headers);
+          if (!actualSource) {
+            setImportLoading(prev => ({ ...prev, [source]: false }));
+            addToast("error", "Source not detected. Ensure it is a valid export.");
+            return;
+          }
+          addLog("system", `⚡ Unified: Detected ${actualSource.toUpperCase()} format.`);
+        }
+
         const _diff = { count: 0, dates: new Set(), statTotals: {} };
         const trackXp = (date, stat, xp) => {
           _diff.count++;
           _diff.dates.add(date);
           _diff.statTotals[stat] = (_diff.statTotals[stat] || 0) + xp;
         };
-        const rows = parseCSVRows(ev.target.result);
-        setImportedData(prev => ({ ...prev, [source]: rows }));
-        setImports(prev => ({ ...prev, [source]: { status: "success", rows: rows.length, lastSync: new Date().toLocaleString() } }));
+
+        setImportedData(prev => ({ ...prev, [actualSource]: rows, [source]: rows }));
+        setImports(prev => ({
+          ...prev,
+          [actualSource]: { status: "success", rows: rows.length, lastSync: new Date().toLocaleString() },
+          [source]: { status: "success", rows: rows.length, lastSync: new Date().toLocaleString() }
+        }));
 
         // ── Run XP Engine (idempotent, three-state day model) ──
         const phaseConfig = { calorieTarget: currentPhase.cal, proteinTarget: 200 };
-        const receipt = processImport(source, rows, phaseConfig);
+        const receipt = processImport(actualSource, rows, phaseConfig);
         setImportReceipt(receipt);
         refreshLedger();
 
@@ -951,8 +1014,8 @@ function IronSovereignV2Inner() {
         }
 
         // Battle log summary + toast + XP popups
-        addLog("system", `📥 ${source.toUpperCase()}: ${rows.length.toLocaleString()} rows → +${receipt.totalXP} XP (${receipt.newDaysProcessed} new days, ${receipt.daysSkippedFinalized} locked)`);
-        addToast("xp", `📥 ${source.toUpperCase()}: +${receipt.totalXP} XP from ${receipt.newDaysProcessed} new days`);
+        addLog("system", `📥 ${actualSource.toUpperCase()}: ${rows.length.toLocaleString()} rows → +${receipt.totalXP} XP (${receipt.newDaysProcessed} new days, ${receipt.daysSkippedFinalized} locked)`);
+        addToast("xp", `📥 ${actualSource.toUpperCase()}: +${receipt.totalXP} XP from ${receipt.newDaysProcessed} new days`);
         if (receipt.xpByStat) {
           Object.entries(receipt.xpByStat).forEach(([stat, xp]) => {
             if (xp > 0) spawnPopup(`+${xp} ${stat} XP`, STAT_COLORS[stat] || "#e2b714");
@@ -960,9 +1023,11 @@ function IronSovereignV2Inner() {
         }
 
         // Auto-extract display stats from source data
-        if (source === "cronometer" && rows.length > 0) {
+        if (actualSource === "cronometer" && rows.length > 0) {
           const proteins = rows.map(r => parseFloat(r["Protein (g)"])).filter(v => !isNaN(v));
           const cals = rows.map(r => parseFloat(r["Energy (kcal)"])).filter(v => !isNaN(v));
+          const fiber = rows.map(r => parseFloat(r["Fiber (g)"])).filter(v => !isNaN(v));
+          
           if (proteins.length) {
             const avg = Math.round(proteins.reduce((a, b) => a + b, 0) / proteins.length);
             setProteinAvg(avg);
@@ -972,18 +1037,43 @@ function IronSovereignV2Inner() {
             const avg = Math.round(cals.reduce((a, b) => a + b, 0) / cals.length);
             addLog("system", `📊 Cronometer: ${avg} kcal avg over ${cals.length} days.`);
           }
+          if (fiber.length) {
+            const avg = Math.round(fiber.reduce((a, b) => a + b, 0) / fiber.length);
+            setAvgFiber(avg);
+            addLog("buff", `🥦 Cronometer: ${avg}g avg fiber over ${fiber.length} days.`);
+          }
         }
 
-        if (source === "liftosaur" && rows.length > 0) {
+        if (actualSource === "liftosaur" && rows.length > 0) {
           setTotalSets(rows.length);
           addLog("combat", `⚔️ Liftosaur: ${rows.length.toLocaleString()} sets imported.`);
+
+          // NEW: Calculate weekly volume per muscle group (Nippard)
+          const volume = { CHEST: 0, BACK: 0, SHOULDERS: 0, QUADS: 0, HAMSTRINGS: 0, BICEPS: 0, TRICEPS: 0, ABS: 0, CALVES: 0 };
+          const sevenDaysAgo = new Date();
+          sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+          const sevenDaysAgoStr = sevenDaysAgo.toISOString().split('T')[0];
+
+          rows.forEach(row => {
+            const rDate = row["Date"] || row["date"] || "";
+            if (rDate >= sevenDaysAgoStr) {
+              const mg = getMuscleGroup(row["Exercise Name"] || row["Exercise"] || "");
+              if (mg && volume[mg] !== undefined) {
+                volume[mg]++; // Count sets
+              }
+            }
+          });
+          setWeeklyVolume(volume);
+          addLog("buff", "📊 Weekly volume metrics updated.");
         }
 
-        if (source === "renpho" && rows.length > 0) {
+        if (actualSource === "renpho" && rows.length > 0) {
           const last = rows[rows.length - 1];
           const w = parseFloat(last["Weight(lb)"] || last["Weight"] || last["weight"]);
           const bf = parseFloat(last["Body Fat(%)"] || last["Body Fat"] || last["bodyfat"]);
           const lm = parseFloat(last["Lean Mass(lb)"] || last["Lean Mass"] || last["muscle"]);
+          const vf = parseFloat(last["Visceral Fat"] || last["Visceral Fat Level"] || 0);
+          
           if (!isNaN(w)) { setWeight(Math.round(w * 10) / 10); addLog("combat", `⚖️ Renpho: Weight ${w.toFixed(1)} lbs`); }
           if (!isNaN(bf)) {
             setBodyFat(Math.round(bf * 10) / 10);
@@ -993,6 +1083,7 @@ function IronSovereignV2Inner() {
             }].slice(-12));
           }
           if (!isNaN(lm)) { setLeanMass(Math.round(lm * 10) / 10); }
+          if (!isNaN(vf) && vf > 0) { setVisceralFat(vf); }
           // Weigh-in streak
           setStreaks(prev => ({ ...prev, weigh: (prev.weigh || 0) + 1 }));
           // Populate weight history from renpho data
@@ -1012,7 +1103,7 @@ function IronSovereignV2Inner() {
           }
         }
 
-        if (source === "fitbit" && rows.length > 0) {
+        if (actualSource === "fitbit" && rows.length > 0) {
           const hdrs = Object.keys(rows[0] || {});
           const isAppleHealth = hdrs.some(h =>
             h.toLowerCase().includes('active calorie') || h.toLowerCase().includes('exercise minute')
@@ -1855,6 +1946,11 @@ function IronSovereignV2Inner() {
                     </div>
                   ))}
                 </div>
+
+                <MetabolicIntelligence 
+                  metrics={{ bodyFatPct: bodyFat, visceralFat, steps: imports.unified.rows > 0 ? 10000 : 5000, muscleMassLbs: leanMass, weightLbs: weight }} 
+                  fiberGrams={avgFiber} 
+                />
               </div>
 
               {/* Class evolution */}
@@ -2429,6 +2525,8 @@ function IronSovereignV2Inner() {
               );
             })()}
 
+            <VolumeHeatmap weeklyVolume={weeklyVolume} />
+
             {/* Activity Heatmap */}
             <div style={S.card}>
               <div style={{ fontSize: 9, color: "#e2b714", fontWeight: 900, letterSpacing: 3, textTransform: "uppercase", marginBottom: 4 }}>
@@ -2701,29 +2799,18 @@ function IronSovereignV2Inner() {
               <p style={{ fontSize: 11, color: "#6b7280", marginBottom: 16, lineHeight: 1.5 }}>
                 Import CSV files from your tracking apps. Data auto-processes and updates your stats, battle log, and encounter status.
               </p>
-              {[
-                { key: "liftosaur", label: "Liftosaur", icon: "⚔️", desc: "Workout sets & exercises", accept: ".csv" },
-                { key: "cronometer", label: "Cronometer", icon: "🥩", desc: "Nutrition & macros", accept: ".csv" },
-                { key: "renpho", label: "Renpho", icon: "⚖️", desc: "Body composition", accept: ".csv" },
-                { key: "fitbit", label: "Apple Health / Fitbit", icon: "🍎", desc: "Steps, sleep, active minutes", accept: ".csv" },
-              ].map(src => {
-                const imp = imports[src.key];
-                return (
-                  <DragDropZone
-                    key={src.key}
-                    source={src.key}
-                    label={src.label}
-                    icon={src.icon}
-                    desc={src.desc}
-                    accept={src.accept}
-                    status={imp.status}
-                    rows={imp.rows}
-                    lastSync={imp.lastSync}
-                    isLoading={importLoading[src.key]}
-                    onFile={processFile}
-                  />
-                );
-              })}
+              <DragDropZone
+                source="unified"
+                label="Unified Sync"
+                icon="⚡"
+                desc="Drop ANY CSV (Liftosaur, Cronometer, Renpho, Apple Health)"
+                accept=".csv"
+                status={imports.unified.status}
+                rows={imports.unified.rows}
+                lastSync={imports.unified.lastSync}
+                isLoading={importLoading.unified}
+                onFile={processFile}
+              />
 
               {/* Import diff — shows after each import */}
               {showImportDiff && lastImportDiff && (
